@@ -45,7 +45,8 @@ get_data_tecan <- function(folder_loc = folder.loc, tecan_file_name = "tecan.xls
   rm(i)
   
   ## This convert the data to to a 'long' format with the tidyverse package.
-  tecan_data <- gather(tecan_data, wellID, OD, -c(cycle, time), factor_key = TRUE)
+  tecan_data <- gather(tecan_data, wellID, OD, -c(cycle, time), factor_key = TRUE) %>%
+                        mutate(OD = as.numeric(OD))
   
   return(tecan_data)
 }
