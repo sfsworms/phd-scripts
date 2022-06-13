@@ -59,7 +59,9 @@ get_data_tecan <- function(folder_loc = folder.loc, tecan_file_name = "tecan.xls
 add_well_name <- function(data = tecan_data, folder_loc = folder.loc) {
   
   well.name <- data.frame(wellID = num_to_well(1:96, plate = 96) %>%
-                            gsub("0", "",.), wellName = paste(folder_loc, "plate.xlsx", sep = "/") %>%
+                            gsub("0$","00",.) %>% # To fix the naming, add a zero after 10, then remove one zero from each well
+                            str_remove(.,"0"), 
+                          wellName = paste(folder_loc, "plate.xlsx", sep = "/") %>%
                             read.xlsx(., colNames = FALSE) %>%
                             as.matrix() %>%
                             t() %>%
