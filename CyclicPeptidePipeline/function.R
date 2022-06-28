@@ -17,8 +17,7 @@ generate.sequence <- function(seqLength = 4, alphabet = c("XXX","YYY")){
   return(seq)
 }
 
-#Iterate the abose to create a DNAStringSet library
-
+#Iterate the above to create a DNAStringSet library
 
 create.lib <- function(libSize = 10, pepLength = 4, alphabet = c("XXX","YYY")){
   lib <- c("1","2")
@@ -29,18 +28,11 @@ create.lib <- function(libSize = 10, pepLength = 4, alphabet = c("XXX","YYY")){
   return(lib)
 }
 
-#This function shoud take a ShortReadQ element, find a pattern in each of the reads, then return X nucleotides after the pattern
+#An attempt to implement extract.peptide faster 
 
-extract.peptide = function(dnaSeq, pattern = "TGGCTTCATTGCGAGCAAT", pepSize = 24) {
-  targetAlignment = pairwiseAlignment(pattern = dnaSeq, subject = pattern,
-    type = "local")  #Align the target
-
-  pos = targetAlignment %>%
-    pattern() %>%
-    start() + nchar(pattern)  #This gives me the start of the peptide in each position
-  sensiblePos = pos + pepSize < 148 #Added this for weird case where the pattern is present near the end
-  
-  targetlist <- subseq(x = dnaSeq[sensiblePos], start = pos[sensiblePos], width = pepSize)
-  
-  return(targetlist)
+extract.peptide = function(dnaSeq, regexPattern = "TGGCTTCATTGCGAGCAAT", pepSize = 24){
+  x <- str_locate(dnaSeq, regexPattern)[,2]
+  sensiblePos <- x+pepSize < 150 #Added this for weird case where the pattern is present near the end
+  peptideList <- subseq(x = dnaSeq[sensiblePos], start = x[sensiblePos]+1, end = x[sensiblePos]+pepSize)
+  return(peptideList)
 }

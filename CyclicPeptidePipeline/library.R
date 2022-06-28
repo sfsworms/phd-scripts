@@ -1,15 +1,19 @@
 #This is just to install of the libraries I need for my script.
 
 
+# Specify your packages
+myPackages <- c("tidyverse", #General data wrangling
+                 "Biostrings", #Managing biological sequences
+                 "ShortRead", #Read and process large fastq of short file
+                 "edgeR", 
+                 "formatR", #used to clean code
+                "stringi") #used to subset code
 
-my_packages <- c("tidyverse", "Biostrings", "ShortRead", "edgeR", "formatR")                                        # Specify your packages
-not_installed <- my_packages[!(my_packages %in% installed.packages()[ , "Package"])]    # Extract not installed packages
+notInstalled <- myPackages[!(myPackages %in% installed.packages()[ , "Package"])]    # Extract not installed packages
 
-if(length(not_installed)) install.packages(not_installed)  
+if(length(notInstalled)) install.packages(notInstalled)  
 # Install not installed packages
-rm(my_packages, not_installed)
 
-library(tidyverse)
-library(Biostrings)
-library(ShortRead)
-library(formatR) #Automatically clean code
+lapply(myPackages, require, character.only = TRUE)
+
+rm(myPackages, notInstalled)

@@ -4,38 +4,38 @@ setwd(dir = "C:/Users/worms/Dropbox/PhD/PhD-Scripts/CyclicPeptidePipeline")
 source("library.R")  #Install and/or load needed libraries
 source("function.R")  #Functions used in the script
 
-# Load a fastQ file with the peptides. The files are too big to be used
-# entirely, so I'll have to use FastqStremer
+# Directory store the directory with all the files.
 
-# I first need to get a connection established.
 
-fileName <- file.path("C:/Users/worms/Documents/2022.06.07 Drift Seq/90-666155004b/Cytoplasmic-NNK-Gen-5-Ara_R1_001.fastq")
-
-destination <- file.path("C:/Users/worms/Desktop/Test peptide2")
 
 
 extract.peptides.fastq <- function(fileName, destination = sprintf("%s_subset", fl)) {
 
   frontPattern <- "TGGCTTCATTGCGAGCAAT"
   backPattern <- "TGTCTGTCTTACG"
+  revPattern <- "GTCGTAAGACAGACA"
+  # Load a fastQ file with the peptides. The files are too big to be used
+  # entirely, so I'll have to use FastqStremer
   
+  # I first need to get a connection established.
   # open the connection
-  stream <- open(FastqStreamer(fileName, verbose = TRUE))
+  stream <- FastqStreamer(fileName)
   on.exit(close(stream))
   
   i = 1
   ptm = proc.time()
-  repeat{
-    
+  
+  dnaSeq <- yield(stream)
+  
+  while(length(dnaSeq) > 0){
     print(i)
     print(proc.time() - ptm)
     i = i+1
+    ### Fix that
     
-    dnaSeq = yield(stream) 
-
     # Filter the one that are way too small (<145 bp out of 150, about 0.5% of seq for
     # NNK7)
-
+    dnaSeq <- yield(stream)
     dnaSeq = dnaSeq[width(dnaSeq) > 145]
 
     # Convert to a DNAStringSet
@@ -57,41 +57,44 @@ extract.peptides.fastq <- function(fileName, destination = sprintf("%s_subset", 
 
     # And get the sequence of the peptides
 
-    fwdNNK3peptide = extract.peptide(dnaSeq = fwdNNK3seq , pattern = frontPattern,
-      pepSize = 12)
-    fwdNNK7peptide = extract.peptide(dnaSeq = fwdNNK7seq , pattern = frontPattern,
-      pepSize = 24)
+    fwdNNK3peptide = extract.peptide(dnaSeq = fwdNNK3seq, 
+                                     regexPattern = frontPattern,
+                                     pepSize = 12)
+    
+    fwdNNK7peptide = extract.peptide(dnaSeq = fwdNNK7seq, 
+                                     regexPattern = frontPattern,
+                                     pepSize = 24)
 
     # Get all the sequence that match the rev pattern for intein and take their reverse
     # complement
 
-    revDnaSeq = dnaSeq[grepl(pattern = "GTCGTAAGACAGACA", dnaSeq %>%
+    revDnaSeq = dnaSeq[grepl(pattern = revPattern, dnaSeq %>%
       as.character())] %>%
       reverseComplement()
-
+    
+    #Remove those that do not contain fronPattern or backPattern
+    revDnaSeq = revDnaSeq[grepl(pattern = frontPattern, revDnaSeq %>%
+                                  as.character())]
+    revDnaSeq = revDnaSeq[grepl(pattern = backPattern, revDnaSeq %>%
+                                  as.character())]
+    
     # I do not have a barcode but I can get the size of the peptide by looking at the
     # intein sequence anyway#Take their reverse complement: problem, we don't get
     # barcode on those reads
+    
+    frontPos = str_locate(revDnaSeq, frontPattern)[,2]+1
 
-    #I'm running alignment multiple times here, this ain't effficienc
+    backPos = str_locate(revDnaSeq, backPattern)[,1]-1
 
-    frontPos = pairwiseAlignment(pattern = revDnaSeq, subject = frontPattern, type = "local") %>%
-      pattern() %>%
-      start() + nchar(frontPattern)
-
-    backPos = pairwiseAlignment(pattern = revDnaSeq, subject = backPattern, type = "local") %>%
-      pattern() %>%
-      start()
-
-    pepLength = backPos - frontPos
-
-    revNNK3peptide = extract.peptide(dnaSeq = revDnaSeq[pepLength == 12], pattern = "TGGCTTCATTGCGAGCAAT",
-      pepSize = 12)
-
-    revNNK7peptide = extract.peptide(dnaSeq = revDnaSeq[pepLength == 24], pattern = "TGGCTTCATTGCGAGCAAT",
-      pepSize = 24)
-
-    rm(backPos, frontPos, pepLength)
+    makeSense <- frontPos < backPos #Check the back is after the front
+    
+    revPeptide = subseq(x = revDnaSeq[makeSense], 
+                        start =  frontPos[makeSense], 
+                        end = backPos[makeSense])
+    
+    revNNK3peptide = revPeptide[width(revPeptide) == 12]  
+      
+    revNNK7peptide = revPeptide[width(revPeptide) == 24]  
 
     # I'll store all the sequence in a ShortRead object
 
@@ -112,9 +115,27 @@ extract.peptides.fastq <- function(fileName, destination = sprintf("%s_subset", 
 
     NNK3peptide <- append(fwdNNK3peptide, revNNK3peptide)
 
-    writeFasta(NNK7peptide, paste(destination, "NNK7peptide.fa", sep = "/"), mode = "a")  # The mode append it to a file if existing
-    writeFasta(NNK3peptide, paste(destination, "NNK3peptide.fa", sep = "/"), mode = "a")
+    writeFasta(NNK7peptide, file.path(destination, gsub(basename(fileName), pattern = ".fastq", replacement = "_peptide3.fa")), mode = "a")  # The mode append it to a file if existing
+    writeFasta(NNK3peptide, file.path(destination, gsub(basename(fileName), pattern = ".fastq", replacement = "_peptide7.fa")), mode = "a")
   }
 }
 
-extract.peptides.fastq(fileName = fileName, destination = destination)
+directory <- "D:/2022.06.07 Drift Seq/90-666155004b/00_fastq/NNK"
+
+#Get a list of the .fastq files
+fileList <- list.files(directory) %>% 
+            grep(pattern = ".fastq$", ., value = TRUE)
+
+for(i in seq_along(fileList)){
+  extract.peptides.fastq(fileName = file.path(directory,fileList[i]), destination = file.path(directory,"Destination"))
+}
+
+fileName <- file.path(directory,fileList[1])
+
+destination <- file.path("C:/Users/worms/Desktop/Test peptide2")
+
+list.files(directory)
+
+grep(pattern = ".fastq$", fileList, value = TRUE)
+
+
