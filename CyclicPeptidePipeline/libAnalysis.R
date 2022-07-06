@@ -69,5 +69,16 @@ alphabetFrequency(test)
 alphabetByCycle(test)
 
 #So the peptides look legit. There just aren't many of them'
+#Let's look at the quality ranking.
 
-fileList
+
+qaSummary <- qa(file.path(directory,fileList[6]))
+
+
+
+?freqSequence
+?.freqSequences(qa, "read")
+
+fls <- dir(directory, "*fastq.gz$", full=TRUE)
+qaSummary <- qa(fls, type="fastq")
+directory
