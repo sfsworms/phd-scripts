@@ -1,7 +1,7 @@
-## This script aims to take likes of peptides and do DESeq analysis of them.
+## This script aims to take counts of peptides and do DESeq analysis of them.
 
-library(tidyverse)
-library(DESeq2)
+library(tidyverse) #Needed for data wrangling
+library(DESeq2) #Use for differential expression
 
 directory = "D:/2022.06.07_drift_seq/90-666155004b/00_fastq/NNK/NNK3/aa_counts_csv"
 
@@ -9,7 +9,7 @@ directory = "D:/2022.06.07_drift_seq/90-666155004b/00_fastq/NNK/NNK3/aa_counts_c
 
 fileList <- list.files(directory)
 
-varNames =fileList %>%
+varNames <- fileList %>%
   gsub("Cytoplasmic-","",.) %>%
   gsub("_001_peptide3_count_aa.csv","",.)
 
@@ -39,14 +39,50 @@ colnames(mergedSet) = columnNames
 
 dropThose = mergedSet$seq %>% grepl("\\*" , . ) 
   
-mergedSet <- mergedSet[!dropThose,]$seq
+mergedSet <- mergedSet[!dropThose,]
 
+#Renames the rows of mergedSet with the gene names
 
-dds <- DESeqDataSetFromMatrix(countData = cts,
+rownames(mergedSet) <- mergedSet[,1]
+
+mergedSet <- mergedSet %>%
+  dplyr::select(2:ncol(mergedSet))
+
+mergedSet[is.na(mergedSet)] <- 0
+
+# Get the coldata excel sheet
+
+coldata <- readxl::read_xlsx("C:/Users/worms/Dropbox/PhD/PhD-Scripts/CyclicPeptidePipeline/coldata.xlsx") %>%
+  as.data.frame()
+
+rownames(coldata) = coldata[,1]
+
+coldata <- coldata %>%
+  dplyr::select(condition:type) 
+
+dds <- DESeqDataSetFromMatrix(countData = mergedSet,
                               colData = coldata,
-                              design= ~ batch + condition)
+                              design= ~ condition)
 dds <- DESeq(dds)
 resultsNames(dds) # lists the coefficients
-res <- results(dds, name="condition_trt_vs_untrt")
-# or to shrink log fold changes association with condition:
-res <- lfcShrink(dds, coef="condition_trt_vs_untrt", type="apeglm")
+res <- results(dds, name="condition_gen5_induction_vs_gen1", independentFiltering = FALSE)
+
+x <- (res$pvalue < 0.01) %>% sum()
+x/ length((res$pvalue))
+
+alpha <- 0.05 # Threshold on the adjusted p-value
+cols <- densCols(res$log2FoldChange, -log10(res$pvalue))
+plot(res$log2FoldChange, -log10(res$padj), col=cols, panel.first=grid(),
+     main="Volcano plot", xlab="Effect size: log2(fold-change)", ylab="-log10(adjusted p-value)",
+     pch=20, cex=0.6)
+abline(v=0)
+abline(v=c(-1,1), col="brown")
+abline(h=-log10(alpha), col="brown")
+
+gn.selected <- abs(res$log2FoldChange) > 2.5 & res$padj < alpha 
+text(res$log2FoldChange[gn.selected],
+     -log10(res$padj)[gn.selected],
+     lab=rownames(res)[gn.selected ], cex=0.4)
+
+# => If FPR is 0.1, I have a low true rate since half of pos would be FP
+
