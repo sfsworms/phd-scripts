@@ -9,7 +9,7 @@ DESTINATION_FOLDER = sys.argv[2]
 FILE_TYPE = "fasta"
 
 # Vérification de la longueur des peptides
-PEPTIDE_LENGTH = 12
+PEPTIDE_LENGTH = 24
 NUCLEOTIDES = list("ACGT")
 
 def check_size(FILE, size=PEPTIDE_LENGTH):
@@ -23,7 +23,7 @@ def check_size(FILE, size=PEPTIDE_LENGTH):
 
 
 def get_count_dna(fasta_file, peptides=dict()):
-    """Compte l'occurence de chaque peptide.
+    """Compte l'occurence de chaque gène encodant un peptide.
     Sortie: un dictionnaire dont les clés sont des séquences (objet seq)"""
     count = 0
     indiv_count = 0

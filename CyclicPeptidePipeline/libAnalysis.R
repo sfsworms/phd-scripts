@@ -6,17 +6,16 @@ source("function.R")  #Functions used in the script
 
 # Directory store the directory with all the files.
 
-directory <- "D:/2022.06.07 Drift Seq/90-666155004b"
+directory <- "D:/2022.06.07_drift_seq/90-666155004b/00_fastq/NNK"
 #Get a list of the NNK .fastq files
 fileList <- list.files(directory) %>%  #Get files from directory
   grep(pattern = ".fastq.gz$", ., value = TRUE) #only the .Fastq
  
 
-destination <- file.path("C:/Users/worms/Desktop/Test peptide2") #Set where to put the fasta with peptides files.
-
+destination <- file.path("D:/2022.06.07_drift_seq/90-666155004b/00_fastq/NNK/NNK7") #Set where to put the fasta with peptides files.
 
 for(i in seq_along(fileList)){ #Run the extraction script on all the fastq NNK files
-  extract.peptides.fastq(fileName = file.path(directory,fileList[i]), destination = file.path(directory,"Destination"))
+  extract.peptides.fastq(fileName = file.path(directory,fileList[i]), destination = file.path(destination,"peptide_sequence"))
 }
 
 ### Get sequence counts from fasta file of peptides

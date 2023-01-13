@@ -3,7 +3,7 @@
 library(tidyverse) #Needed for data wrangling
 library(DESeq2) #Use for differential expression
 
-directory = "D:/2022.06.07_drift_seq/90-666155004b/00_fastq/NNK/NNK3/aa_counts_csv"
+directory = "D:/Destination/peptide_24_count/count_csv"
 
 # Get the count data
 
@@ -52,7 +52,7 @@ mergedSet[is.na(mergedSet)] <- 0
 
 # Get the coldata excel sheet
 
-coldata <- readxl::read_xlsx("C:/Users/worms/Dropbox/PhD/PhD-Scripts/CyclicPeptidePipeline/coldata.xlsx") %>%
+coldata <- readxl::read_xlsx("D:/Destination/coldata.xlsx") %>%
   as.data.frame()
 
 rownames(coldata) = coldata[,1]
