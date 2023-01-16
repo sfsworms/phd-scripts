@@ -1,5 +1,7 @@
 ## Analysis project
 
+#Note to self: investigate if garbage collection 'gc()' can speed up the loop. Probably a good practice to insert it after function taking > 30s.
+
 setwd(dir = "C:/Users/worms/Dropbox/PhD/PhD-Scripts/CyclicPeptidePipeline")
 source("library.R")  #Install and/or load needed libraries
 source("function.R")  #Functions used in the script

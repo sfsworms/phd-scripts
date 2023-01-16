@@ -1,7 +1,7 @@
-## This script aims to take counts of peptides and do DESeq analysis of them.
+## This script aims to take counts of peptides and do analysis of them.
 
-library(tidyverse) #Needed for data wrangling
-library(DESeq2) #Use for differential expression
+library(tidyverse)  #Needed for data wrangling
+library(DESeq2)  #Use for differential expression
 
 # This folder should contain the CSV files with a column for sequence and a column for counts
 
@@ -11,80 +11,73 @@ directory = choose.dir()
 
 fileList <- list.files(directory)
 
-varNames <- fileList %>%
-  gsub("Cytoplasmic-","",.) %>%
-  gsub("_001_peptide3_count_aa.csv","",.)
+#Keep only the data csv
 
-for(i in seq_along(fileList)){
-  
-  counts = read.csv(file.path(directory, fileList[i]),
-           header = FALSE)
-  
+fileList <- fileList[grepl("Gen", fileList)]
+
+varNames <- fileList %>%
+  gsub("Cytoplasmic-NNK-", "", .) %>%
+  gsub("_001_peptide3_count.csv", "", .) %>%
+  gsub("-", "_", .)
+
+for (i in seq_along(fileList)) {
+
+  counts = read.csv(file.path(directory, fileList[i]), header = FALSE)
+
   colnames(counts) = c("seq", "count")
-  
-  assign(varNames[i], 
-         counts)
+
+  assign(varNames[i], counts)
 
 }
 
-## Merge by peptide to form one big dataset
+rm(counts)
+
+## Merge by peptide to form one big dataset.
+
 mergedSet = get(varNames[1])
 
-for(i in 2:length(fileList)){
+for (i in 2:length(fileList)) {
   mergedSet = full_join(mergedSet, get(varNames[i]), by = "seq")
 }
 
 columnNames = c("seq", varNames)
 colnames(mergedSet) = columnNames
 
-#Clean the mergedSet from stop codons as
-
-#dropThose = mergedSet$seq %>% grepl("\\*" , . ) 
-  
-#mergedSet <- mergedSet[!dropThose,]
-
-#Renames the rows of mergedSet with the gene names
-
-rownames(mergedSet) <- mergedSet[,1]
+# Replace all NAs by 0
 
 mergedSet <- mergedSet %>%
-  dplyr::select(2:ncol(mergedSet))
+  mutate_at(c(2:ncol(mergedSet)),
+           ~replace_na(.,0))
 
-mergedSet[is.na(mergedSet)] <- 0
+rm(list = varNames)
 
-# Get the coldata excel sheet
+# Clean the mergedSet from stop codons. As of jan 23, I'm not doing that
 
-coldata <- readxl::read_xlsx("D:/Destination/coldata.xlsx") %>%
-  as.data.frame()
+# dropThose = mergedSet$seq %>% grepl('\\*' , . )
 
-rownames(coldata) = coldata[,1]
+# mergedSet <- mergedSet[!dropThose,]
 
-coldata <- coldata %>%
-  dplyr::select(condition:type) 
+## Compute sum of counts for each condition and then compute ratios
 
-dds <- DESeqDataSetFromMatrix(countData = mergedSet,
-                              colData = coldata,
-                              design= ~ condition)
-dds <- DESeq(dds)
-resultsNames(dds) # lists the coefficients
-res <- results(dds, name="condition_gen5_induction_vs_gen1", independentFiltering = FALSE)
+mergedSet <- mergedSet %>% 
+  mutate(Gen_1_sum = Gen_1_LB_R1 + Gen_1_LB_R2) %>%
+  mutate(Gen_5_Ara_sum = Gen_5_Ara_R1 + Gen_5_Ara_R2) %>%
+  mutate(Gen_5_Glu_sum = Gen_5_Glu_R1 + Gen_5_Glu_R2) 
 
-x <- (res$pvalue < 0.01) %>% sum()
-x/ length((res$pvalue))
+Gen1_read_total <- sum(mergedSet$Gen_1_sum)
+Gen5_ara_total <- sum(mergedSet$Gen_5_Ara_sum) 
+Gen5_glu_total <- sum(mergedSet$Gen_5_Glu_sum)
 
-alpha <- 0.05 # Threshold on the adjusted p-value
-cols <- densCols(res$log2FoldChange, -log10(res$pvalue))
-plot(res$log2FoldChange, -log10(res$padj), col=cols, panel.first=grid(),
-     main="Volcano plot", xlab="Effect size: log2(fold-change)", ylab="-log10(adjusted p-value)",
-     pch=20, cex=0.6)
-abline(v=0)
-abline(v=c(-1,1), col="brown")
-abline(h=-log10(alpha), col="brown")
+mergedSet <- mergedSet %>%
+  mutate(Gen_1_ratio = Gen_1_sum / Gen1_read_total) %>%
+  mutate(Gen_5_ara_ratio = Gen_5_Ara_sum / Gen5_ara_total) %>%
+  mutate(Gen_5_glu_ratio = Gen_5_Glu_sum / Gen5_glu_total)
 
-gn.selected <- abs(res$log2FoldChange) > 2.5 & res$padj < alpha 
-text(res$log2FoldChange[gn.selected],
-     -log10(res$padj)[gn.selected],
-     lab=rownames(res)[gn.selected ], cex=0.4)
+## Compute enrichment ratio by comparing with Gen 1
 
-# => If FPR is 0.1, I have a low true rate since half of pos would be FP
+mergedSet <- mergedSet %>%
+  mutate(enrichment_ara = log2(Gen_5_ara_ratio/Gen_1_ratio)) %>%
+  mutate(enrichment_glu = log2(Gen_5_glu_ratio/Gen_1_ratio))
 
+#Have an issue with zero ratio for Gen1, need to add a tiiiiiiiny amount to all I think. Or actually just
+# refuse to compute ratio for those? With NAs or something
