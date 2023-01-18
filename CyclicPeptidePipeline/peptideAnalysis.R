@@ -5,79 +5,124 @@ library(DESeq2)  #Use for differential expression
 
 # This folder should contain the CSV files with a column for sequence and a column for counts
 
-directory = choose.dir()
+directory <- "C:/Users/worms/NGS Data/2022.06.07_drift_seq/90-666155004b/00_fastq/NNK/NNK3/counts_csv"
+
+#directory = choose.dir()
 
 # Get the count data
 
-fileList <- list.files(directory)
+file_list <- list.files(directory)
 
-#Keep only the data csv
+#Keep only the data csv, trim the name a bit and then import all the csvs.
 
-fileList <- fileList[grepl("Gen", fileList)]
+file_list <- file_list[grepl("Gen", file_list)]
 
-varNames <- fileList %>%
+run_names <- file_list %>%
   gsub("Cytoplasmic-NNK-", "", .) %>%
   gsub("_001_peptide3_count.csv", "", .) %>%
-  gsub("-", "_", .)
+  gsub("-", "_", .) %>%
+  tolower()
 
-for (i in seq_along(fileList)) {
 
-  counts = read.csv(file.path(directory, fileList[i]), header = FALSE)
-
-  colnames(counts) = c("seq", "count")
-
-  assign(varNames[i], counts)
-
+for (i in seq_along(file_list)) {
+  assign(run_names[i],
+         read.csv(file.path(directory, file_list[i]), header = FALSE) %>%
+                        setNames(., c("seq", run_names[i]))
+  )
 }
 
-rm(counts)
+## Merge by sequence to form one big dataset.
 
-## Merge by peptide to form one big dataset.
+merged_set = get(run_names[1])
 
-mergedSet = get(varNames[1])
-
-for (i in 2:length(fileList)) {
-  mergedSet = full_join(mergedSet, get(varNames[i]), by = "seq")
+for (i in 2:length(file_list)) {
+  merged_set = full_join(merged_set, get(run_names[i]), by = "seq")
 }
+rm(list = run_names)
 
-columnNames = c("seq", varNames)
-colnames(mergedSet) = columnNames
-
+#Gotta get all my columns lowercase. Down with capital!
+ 
 # Replace all NAs by 0
 
-mergedSet <- mergedSet %>%
-  mutate_at(c(2:ncol(mergedSet)),
+merged_set <- merged_set %>%
+  mutate_at(c(2:ncol(merged_set)),
            ~replace_na(.,0))
 
-rm(list = varNames)
+# Going to split the set for induced and repressed conditions. 
 
-# Clean the mergedSet from stop codons. As of jan 23, I'm not doing that
+induced_set <- merged_set %>% 
+  select(!contains("glu"))
 
-# dropThose = mergedSet$seq %>% grepl('\\*' , . )
+repressed_set <- merged_set %>%
+  select(!contains("ara"))
+  
 
-# mergedSet <- mergedSet[!dropThose,]
+
+# Clean the merged_set from stop codons. As of jan 23, I'm not doing that
+
+# dropThose = merged_set$seq %>% grepl('\\*' , . )
+# merged_set <- merged_set[!dropThose,]
 
 ## Compute sum of counts for each condition and then compute ratios
 
-mergedSet <- mergedSet %>% 
+merged_set <- merged_set %>% 
   mutate(Gen_1_sum = Gen_1_LB_R1 + Gen_1_LB_R2) %>%
   mutate(Gen_5_Ara_sum = Gen_5_Ara_R1 + Gen_5_Ara_R2) %>%
   mutate(Gen_5_Glu_sum = Gen_5_Glu_R1 + Gen_5_Glu_R2) 
 
-Gen1_read_total <- sum(mergedSet$Gen_1_sum)
-Gen5_ara_total <- sum(mergedSet$Gen_5_Ara_sum) 
-Gen5_glu_total <- sum(mergedSet$Gen_5_Glu_sum)
+Gen1_read_total <- sum(merged_set$Gen_1_sum)
+Gen5_ara_total <- sum(merged_set$Gen_5_Ara_sum) 
+Gen5_glu_total <- sum(merged_set$Gen_5_Glu_sum)
 
-mergedSet <- mergedSet %>%
+merged_set <- merged_set %>%
   mutate(Gen_1_ratio = Gen_1_sum / Gen1_read_total) %>%
   mutate(Gen_5_ara_ratio = Gen_5_Ara_sum / Gen5_ara_total) %>%
   mutate(Gen_5_glu_ratio = Gen_5_Glu_sum / Gen5_glu_total)
 
 ## Compute enrichment ratio by comparing with Gen 1
 
-mergedSet <- mergedSet %>%
+merged_set <- merged_set %>%
   mutate(enrichment_ara = log2(Gen_5_ara_ratio/Gen_1_ratio)) %>%
   mutate(enrichment_glu = log2(Gen_5_glu_ratio/Gen_1_ratio))
 
 #Have an issue with zero ratio for Gen1, need to add a tiiiiiiiny amount to all I think. Or actually just
 # refuse to compute ratio for those? With NAs or something
+
+#So the proper way to do it is to split the dataset into two and run the analysis separately for now.
+
+
+
+
+
+#How many peptides don't have any zeroes?
+x <- list()
+nRow <- seq(nrow(merged_set))
+nCol <-  8:10
+
+for (i in nRow){
+  y = FALSE
+  for (j in nCol){
+    if (merged_set[[j]][i] == 0){
+      y = TRUE
+    }
+  }
+  x <- append(x, y)  
+  
+  print(i)
+  }
+    
+
+
+hasZeroes <- merged_set %>%
+  select(8:10) %>%
+  rowSums(merged_set == 0)
+
+
+rm(hasZeroes)  
+
+oriSet <- merged_set %>%
+  select(8:10)
+
+x <- rowSums(filterSet == 0)
+
+filterSet <- merged_set[!rowSums(oriSet == 0)]
