@@ -2,127 +2,121 @@
 
 library(tidyverse)  #Needed for data wrangling
 library(DESeq2)  #Use for differential expression
+library(bioseq) # Used to translate sequence
+
+setwd(dir = "C:/Users/worms/Dropbox/PhD/PhD-Scripts/CyclicPeptidePipeline")
+source("library_installation.R")  #Install and/or load needed libraries
+source("function.R")  #Functions used in the script
 
 # This folder should contain the CSV files with a column for sequence and a column for counts
-
 directory <- "C:/Users/worms/NGS Data/2022.06.07_drift_seq/90-666155004b/00_fastq/NNK/NNK3/counts_csv"
 
-#directory = choose.dir()
+# Get the names of the counts .csv files
 
-# Get the count data
+file_list <- list.files(directory) 
+file_list <- file_list[grepl(".csv", file_list)]
 
-file_list <- list.files(directory)
-
-#Keep only the data csv, trim the name a bit and then import all the csvs.
-
-file_list <- file_list[grepl("Gen", file_list)]
+# Trim the file names to use as variable names. 
 
 run_names <- file_list %>%
   gsub("Cytoplasmic-NNK-", "", .) %>%
   gsub("_001_peptide3_count.csv", "", .) %>%
+  tolower() %>%
   gsub("-", "_", .) %>%
-  tolower()
+  gsub("gen_", "gen", .)
 
+# Import the sets
+merged_set <- createCountSet(directory, file_list, run_names)
 
-for (i in seq_along(file_list)) {
-  assign(run_names[i],
-         read.csv(file.path(directory, file_list[i]), header = FALSE) %>%
-                        setNames(., c("seq", run_names[i]))
-  )
-}
-
-## Merge by sequence to form one big dataset.
-
-merged_set = get(run_names[1])
-
-for (i in 2:length(file_list)) {
-  merged_set = full_join(merged_set, get(run_names[i]), by = "seq")
-}
-rm(list = run_names)
-
-#Gotta get all my columns lowercase. Down with capital!
- 
-# Replace all NAs by 0
-
-merged_set <- merged_set %>%
-  mutate_at(c(2:ncol(merged_set)),
-           ~replace_na(.,0))
-
-# Going to split the set for induced and repressed conditions. 
+# Going to split the set for induced and repressed conditions. Drop the lines containing only zeros
 
 induced_set <- merged_set %>% 
-  select(!contains("glu"))
+  select(!contains("glu")) %>%
+  filter(rowSums(.[-c(1,2)]) != 0)
+
+# Don't need medium info anymore
+colnames(induced_set) <- gsub("ara_|lb_",
+                              "",
+                              colnames(induced_set))
 
 repressed_set <- merged_set %>%
-  select(!contains("ara"))
+  select(!contains("ara")) %>%
+  filter(rowSums(.[-c(1,2)]) != 0)
+
+colnames(repressed_set) <- gsub("ara_|lb_|glu_",
+                              "",
+                              colnames(repressed_set))
+
+## Compute sum of counts for each condition and then compute ratios of each read as a percentage of total
+## compute an enrichment ratio based on the final ratio over the initial one, and removes NAs caused by divide by zero error
+
+induced_set <- induced_set %>% computeRatios()
+repressed_set <- repressed_set %>% computeRatios()
+
+induced_set$enrichment_ratio %>%
+  summary()
+
+repressed_set$enrichment_ratio %>%
+  summary()
+
+# This is nice, it hints that some were highly selected. Let's look at them. 
+
+induced_set %>%
+  arrange(desc(enrichment_ratio)) %>% 
+  head(n = 20)
+
+# Really cool, look like few stop codons (good) and a common CRS* motif
+
+induced_set_enriched <- induced_set %>%
+  filter(enrichment_ratio > 4)
+
+induced_set_depleted <- induced_set %>% 
+  filter(enrichment_ratio < 0.25)
+
+# Let's see about the subset wdepleted
+
+
+induced_set %>%
+  arrange(enrichment_ratio) %>% 
+  head(n = 20)
+
+#Really strange, they all have the same number of reads in all conditions!
+
+induced_set %>%
+  arrange(enrichment_ratio) %>% 
+  filter(enrichment_ratio > 0.62)
+  head(n = 20)
+
+## Few depleted peptides: we can't detect toxic peptides?
   
-
-
-# Clean the merged_set from stop codons. As of jan 23, I'm not doing that
-
-# dropThose = merged_set$seq %>% grepl('\\*' , . )
-# merged_set <- merged_set[!dropThose,]
-
-## Compute sum of counts for each condition and then compute ratios
-
-merged_set <- merged_set %>% 
-  mutate(Gen_1_sum = Gen_1_LB_R1 + Gen_1_LB_R2) %>%
-  mutate(Gen_5_Ara_sum = Gen_5_Ara_R1 + Gen_5_Ara_R2) %>%
-  mutate(Gen_5_Glu_sum = Gen_5_Glu_R1 + Gen_5_Glu_R2) 
-
-Gen1_read_total <- sum(merged_set$Gen_1_sum)
-Gen5_ara_total <- sum(merged_set$Gen_5_Ara_sum) 
-Gen5_glu_total <- sum(merged_set$Gen_5_Glu_sum)
-
-merged_set <- merged_set %>%
-  mutate(Gen_1_ratio = Gen_1_sum / Gen1_read_total) %>%
-  mutate(Gen_5_ara_ratio = Gen_5_Ara_sum / Gen5_ara_total) %>%
-  mutate(Gen_5_glu_ratio = Gen_5_Glu_sum / Gen5_glu_total)
-
-## Compute enrichment ratio by comparing with Gen 1
-
-merged_set <- merged_set %>%
-  mutate(enrichment_ara = log2(Gen_5_ara_ratio/Gen_1_ratio)) %>%
-  mutate(enrichment_glu = log2(Gen_5_glu_ratio/Gen_1_ratio))
-
-#Have an issue with zero ratio for Gen1, need to add a tiiiiiiiny amount to all I think. Or actually just
-# refuse to compute ratio for those? With NAs or something
-
-#So the proper way to do it is to split the dataset into two and run the analysis separately for now.
-
-
-
-
-
-#How many peptides don't have any zeroes?
-x <- list()
-nRow <- seq(nrow(merged_set))
-nCol <-  8:10
-
-for (i in nRow){
-  y = FALSE
-  for (j in nCol){
-    if (merged_set[[j]][i] == 0){
-      y = TRUE
-    }
-  }
-  x <- append(x, y)  
   
-  print(i)
-  }
-    
-
-
-hasZeroes <- merged_set %>%
-  select(8:10) %>%
-  rowSums(merged_set == 0)
-
-
-rm(hasZeroes)  
-
-oriSet <- merged_set %>%
-  select(8:10)
-
-x <- rowSums(filterSet == 0)
-
-filterSet <- merged_set[!rowSums(oriSet == 0)]
+  repressed_set$enrichment_ratio %>%
+    summary()
+  
+  # This is nice, it hints that some were highly selected. Let's look at them. 
+  
+  repressed_set %>%
+    arrange(desc(enrichment_ratio)) %>% 
+    head(n = 20)
+  
+  # Really cool, look like few stop codons (good) and a common CRS* motif
+  
+  repressed_set_enriched <- repressed_set %>%
+    filter(enrichment_ratio > 4)
+  
+  repressed_set_depleted <- repressed_set %>% 
+    filter(enrichment_ratio < 0.25)
+  
+  # Let's see about the subset wdepleted
+  
+  
+  repressed_set %>%
+    arrange(enrichment_ratio) %>% 
+    head(n = 20)
+  
+  #Really strange, they all have the same number of reads in all conditions!
+  
+  repressed_set %>%
+    arrange(enrichment_ratio) %>% 
+    filter(enrichment_ratio > 0.62)
+  head(n = 20)

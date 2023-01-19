@@ -3,13 +3,15 @@
 
 # Specify your packages
 myPackages <- c("tidyverse", #General data wrangling
-                 "Biostrings", #Managing biological sequences
-                 "ShortRead", #Read and process large fastq of short file
-                 "edgeR", 
-                 "formatR", #used to clean code
-                "stringi") #used to subset code
+                "Biostrings", #Managing biological sequences
+                "ShortRead", #Read and process large fastq of short file
+                "edgeR", 
+                "formatR", #used to clean code
+                "stringi",#used to subset code
+                "bioseq")  
 
-notInstalled <- myPackages[!(myPackages %in% installed.packages()[ , "Package"])]    # Extract not installed packages
+notInstalled <- myPackages[!(myPackages %in% installed.packages()[ , "Package"])]   
+# Extract not installed packages
 
 if(length(notInstalled)) install.packages(notInstalled)  
 # Install not installed packages
