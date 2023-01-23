@@ -1,16 +1,16 @@
 #Functions for the peptide analysis project
 
-#Load libraries
+#Load libraries needed
 library(tidyverse)
 library(Biostrings)
-library(universalmotif)
+library(universalmotif) #Do generation of peptides
 
+#Those are useful values
 codonAlphabet <- names(GENETIC_CODE)
 codonNNK <- codonAlphabet[grep("(.)(.)[G,T]$",codonAlphabet)]
 codonNNB <- codonAlphabet[grep("(.)(.)[C,G,T]$",codonAlphabet)]
 
 #Generate a peptide from a table of codons. Might need to multithread to make it faster
-
 generate.sequence <- function(seqLength = 4, alphabet = c("XXX","YYY")){
   x <- runif(seqLength, min = 1, max = length(alphabet)) %>% round()
   seq <- alphabet[x] %>% toString() %>% gsub(", ","",.)
@@ -18,7 +18,6 @@ generate.sequence <- function(seqLength = 4, alphabet = c("XXX","YYY")){
 }
 
 #Iterate the above to create a DNAStringSet library
-
 create.lib <- function(libSize = 10, pepLength = 4, alphabet = c("XXX","YYY")){
   lib <- c("1","2")
   for(i in 1:libSize){
@@ -28,7 +27,7 @@ create.lib <- function(libSize = 10, pepLength = 4, alphabet = c("XXX","YYY")){
   return(lib)
 }
 
-#An attempt to implement extract.peptide faster 
+#Extract the peptide from a dnaSeq sequence. regexPattern should be the sequence right before the peptides. 
 
 extract.peptide = function(dnaSeq, regexPattern = "TGGCTTCATTGCGAGCAAT", pepSize = 24){
   pepPosition <- str_locate(dnaSeq, regexPattern)[,2]
@@ -37,7 +36,8 @@ extract.peptide = function(dnaSeq, regexPattern = "TGGCTTCATTGCGAGCAAT", pepSize
   return(peptideList)
 }
 
-
+#Extract all peptides from the fastq of a run. Takes the name of the file, the destination where tos tore the peptide,
+#the sequence just in front and behing the peptide and the size of the peptides.
 extract.peptides.fastq = function(fileName, 
                                    destination, 
                                    frontPattern = "TTCATTGCGAGCAAT",
@@ -45,8 +45,6 @@ extract.peptides.fastq = function(fileName,
                                    shortPeptideSize = 12,
                                    largePeptideSize = 24
                                    ) {
-  
-
   # Load a fastQ.gz file with the peptides. The files are too big to be used
   # entirely, so I'll have to use FastqStremer. .gz compressed files actually process faster than .fastq files.
   
@@ -55,6 +53,7 @@ extract.peptides.fastq = function(fileName,
   stream <- FastqStreamer(fileName)
   on.exit(close(stream))
   
+  #This is just to track the speed of processing of the file.
   i = 1
   ptm = proc.time()
   
@@ -186,7 +185,10 @@ computeRatios <- function(df){
   
   # Drop the ratios that are infinite (where there is nothing originally) into NA
   df <- df %>%
-    mutate(enrichment_ratio = ifelse(is.infinite(enrichment_ratio), NA, enrichment_ratio))
+    mutate(enrichment_ratio = ifelse(is.infinite(enrichment_ratio), NA, enrichment_ratio)) 
+  # Add a log version
+  df <- df %>%
+    mutate(enrichment_ratio_log = log2(enrichment_ratio))
   
   return(df)
 }

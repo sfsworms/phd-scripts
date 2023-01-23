@@ -58,65 +58,64 @@ induced_set$enrichment_ratio %>%
 
 repressed_set$enrichment_ratio %>%
   summary()
-
-# This is nice, it hints that some were highly selected. Let's look at them. 
-
-induced_set %>%
-  arrange(desc(enrichment_ratio)) %>% 
-  head(n = 20)
-
-# Really cool, look like few stop codons (good) and a common CRS* motif
-
-induced_set_enriched <- induced_set %>%
-  filter(enrichment_ratio > 4)
-
-induced_set_depleted <- induced_set %>% 
-  filter(enrichment_ratio < 0.25)
-
-# Let's see about the subset wdepleted
-
-
-induced_set %>%
-  arrange(enrichment_ratio) %>% 
-  head(n = 20)
-
-#Really strange, they all have the same number of reads in all conditions!
-
-induced_set %>%
-  arrange(enrichment_ratio) %>% 
-  filter(enrichment_ratio > 0.62)
-  head(n = 20)
-
-## Few depleted peptides: we can't detect toxic peptides?
-  
-  
-  repressed_set$enrichment_ratio %>%
-    summary()
-  
-  # This is nice, it hints that some were highly selected. Let's look at them. 
-  
-  repressed_set %>%
-    arrange(desc(enrichment_ratio)) %>% 
-    head(n = 20)
-  
-  # Really cool, look like few stop codons (good) and a common CRS* motif
-  
-  repressed_set_enriched <- repressed_set %>%
-    filter(enrichment_ratio > 4)
-  
-  repressed_set_depleted <- repressed_set %>% 
-    filter(enrichment_ratio < 0.25)
-  
-  # Let's see about the subset wdepleted
-  
-  
-  repressed_set %>%
-    arrange(enrichment_ratio) %>% 
-    head(n = 20)
-  
-  #Really strange, they all have the same number of reads in all conditions!
-  
-  repressed_set %>%
-    arrange(enrichment_ratio) %>% 
-    filter(enrichment_ratio > 0.62)
-  head(n = 20)
+# 
+# # This is nice, it hints that some were highly selected. Let's look at them. 
+# 
+# induced_set %>%
+#   arrange(desc(enrichment_ratio)) %>% 
+#   head(n = 20)
+# 
+# # Really cool, look like few stop codons (good) and a common CRSX motif
+# 
+# induced_set_enriched <- induced_set %>%
+#   filter(enrichment_ratio > 4)
+# 
+# induced_set_depleted <- induced_set %>% 
+#   filter(enrichment_ratio < 0.25)
+# 
+# # Let's see about the subset wdepleted
+# 
+# 
+# induced_set %>%
+#   arrange(enrichment_ratio) %>% 
+#   head(n = 20)
+# 
+# #Really strange, they all have the same number of reads in all conditions!
+# 
+# induced_set %>%
+#   arrange(enrichment_ratio) %>% 
+#   filter(enrichment_ratio > 0.62)
+#   head(n = 20)
+# 
+# ## Few depleted peptides: we can't detect toxic peptides?
+#   
+#   
+#   repressed_set$enrichment_ratio %>%
+#     summary()
+#   
+#   # This is nice, it hints that some were highly selected. Let's look at them. 
+#   
+#   repressed_set %>%
+#     arrange(desc(enrichment_ratio)) %>% 
+#     head(n = 20)
+#   
+#   # Really cool, look like few stop codons (good) and a common CRS* motif
+#   
+#   repressed_set_enriched <- repressed_set %>%
+#     filter(enrichment_ratio > 4)
+#   
+#   repressed_set_depleted <- repressed_set %>% 
+#     filter(enrichment_ratio < 0.25)
+#   
+#   # Let's see about the subset wdepleted
+#   
+#   
+#   repressed_set %>%
+#     arrange(enrichment_ratio) %>% 
+#     head(n = 20)
+#   
+#   #Really strange, they all have the same number of reads in all conditions!
+#   
+#   repressed_set %>%
+#     arrange(enrichment_ratio) %>% 
+#     filter(enrichment_ratio > 0.62)
