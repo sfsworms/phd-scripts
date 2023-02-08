@@ -19,3 +19,6 @@ if(length(notInstalled)) install.packages(notInstalled)
 lapply(myPackages, require, character.only = TRUE)
 
 rm(myPackages, notInstalled)
+
+#Update all packages
+update.packages(ask = FALSE)
