@@ -193,6 +193,15 @@ computeRatios <- function(df){
   return(df)
 }
 
+  
+#Create a function that drop all the peptides with stop codons from a data frame
+remove_stop_codons <- function(peptide_data_frame){
+  output_df <- peptide_data_frame[!grepl("\\*", peptide_data_frame$peptide_seq),]
+  return(output_df)
+}
+  
+  
+
 ## Get all the sequence counts from within a directory into one set. Requires a directory, a list of files to load and the names of the variables in the set
 createCountSet <- function(directory, file_list, run_names){
   for (i in seq_along(file_list)) {
