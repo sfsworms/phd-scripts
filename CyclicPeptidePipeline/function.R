@@ -205,19 +205,11 @@ remove_stop_codons <- function(peptide_data_frame){
 ## Get all the sequence counts from within a directory into one set. Requires a directory, a list of files to load and the names of the variables in the set
 createCountSet <- function(directory, file_list, run_names){
   for (i in seq_along(file_list)) {
-    tpm <- Sys.time()
     assign(run_names[i],
            read.csv(file.path(directory, file_list[i]), header = FALSE) %>%
              setNames(., c("seq", run_names[i]))
     )
     gc()
-    paste("We loaded file ",
-          file_list[i],
-          " in ",
-          Sys.time() - tpm,
-          " seconds.",
-          sep = "") %>%
-      print()
   }
   ## Merge by sequence to form one big dataset.
   

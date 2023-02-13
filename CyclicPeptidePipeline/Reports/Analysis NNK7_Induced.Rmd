@@ -1,5 +1,5 @@
 ---
-title: 'Analysis: NNK7'
+title: 'Analysis: NNK7 Induced set'
 output: html_document
 date: "2023-01-19"
 ---
@@ -64,14 +64,14 @@ induced_set_stops <- induced_set %>%
   filter(grepl("\\*", peptide_seq))
 ```
 
-I'll now subset the `r nrow(induced_set_stops)` sequences (`r nrow(induced_set_stops)/nrow(induced_set)*100`% of the total) that contains stop codons. The percentage I would expect with peptides containing 7 randomized NNK codons is `r (1-(31/32)^7)*100`% of the total, so this is consistent. 
+I'll now subset the `r nrow(induced_set_stops)` sequences (`r (nrow(induced_set_stops)/nrow(induced_set)*100) %>% round(digits = 2)`% of the total) that contains stop codons. The percentage I would expect with peptides containing 7 randomized NNK codons is `r ((1-(31/32)^7)*100) %>% round(digits = 2)`% of the total, so this is consistent. 
 
 ```{r echo=FALSE}
 ggplot(induced_set_stops %>%
          filter(enrichment_ratio < 1.25), aes(enrichment_ratio)) +
   geom_histogram(bins = 30, color = "black", fill = "lightblue") +
   labs(x = "Enrichment Ratio", y = "Frequency") +
-  ggtitle("Histogram of the enrichment ratio for enrichment < 1.25")
+  ggtitle("Histogram of the enrichment ratio of peptides with stop codons for enrichment < 1.25")
 ```
 
 
@@ -80,43 +80,15 @@ ggplot(induced_set_stops %>%
          filter(enrichment_ratio_log > 0.5), aes(enrichment_ratio_log)) +
   geom_histogram(bins = 10, color = "black", fill = "lightblue") +
   labs(x = "Log(Enrichment Ratio)", y = "Frequency") +
-  ggtitle("Histogram of the enrichment ratio for log(enrichment) > 0.5")
+  ggtitle("Histogram of the enrichment ratio of peptides with stop codons for log(enrichment) > 0.5")
 ```
 
-The general patterns of stop codon containing peptides is similar to the overall pattern, which kind of sucks. `r induced_set_stops %>% filter(enrichment_ratio > 2) %>% nrow()` (`r induced_set_stops %>% filter(enrichment_ratio > 2) %>% nrow() / nrow(induced_set_stops) * 100`%) have an enrichment ratio of over 2.
+The general patterns of stop codon containing peptides is similar to the overall pattern, which kind of sucks. `r induced_set_stops %>% filter(enrichment_ratio > 2) %>% nrow()` (`r (induced_set_stops %>% filter(enrichment_ratio > 2) %>% nrow() / nrow(induced_set_stops) * 100) %>% round(digits = 2)`%) have an enrichment ratio of over 2. This is almost exactly the same as those without stop codons. 
+
+
 
 
 ```{r echo=FALSE}
-enrichment_threshold <- 0
-
-very_induced_set <- induced_set %>% filter(enrichment_ratio > enrichment_threshold)
-
-print(paste("In total, ",
-            nrow(very_induced_set),
-            " DNA sequences have an enrichment ratio of more than ",
-            enrichment_threshold,
-            "",
-            sep = ""))
-n_dna <- length(unique(very_induced_set$seq))
-n_peptide <- length(unique(very_induced_set$peptide_seq))
-
-table_counts <- table(very_induced_set$peptide_seq)
-
-very_induced_set <- very_induced_set %>%
-  mutate(pep_count = as.numeric(table_counts[peptide_seq]))
-
-very_induced_set %>% 
-  select(enrichment_ratio) %>%
-  summary()
-
-very_induced_set %>%
-  filter(pep_count >= 3) %>% 
-  select(enrichment_ratio) %>%
-  summary()
-
-ggplot(very_induced_set, aes(pep_count, enrichment_ratio_log)) + 
-  geom_point() + 
-  geom_smooth(method = "lm", se = FALSE)
 
 ```
 
