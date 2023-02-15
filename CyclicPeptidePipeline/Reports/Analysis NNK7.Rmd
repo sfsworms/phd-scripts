@@ -1,6 +1,7 @@
 ---
-title: 'Analysis: NNK7'
-output: html_document
+title: 'Analysis: NNK7 repressed set'
+output:
+  html_document: default
 date: "2023-01-19"
 ---
 
@@ -13,45 +14,96 @@ library(tidyverse)
 library(ggplot2)
 
 source("C:/Users/worms/Dropbox/PhD/PhD-Scripts/CyclicPeptidePipeline/function.R")
+n_reads <- 500000 
 ```
 
 # Introduction
 
-This is the analysis of the induced NNK7 peptides from the drift experiment. The required datasets are created in the "peptideAnalysis.R" file. I'm going to do it on a subset of 100 000 reads at first to speed things up.
+This is the analysis of the induced NNK7 peptides from the drift experiment. The required datasets are created in the "peptideAnalysis.R" file. I'm going to do it on a subset of of `r print(n_reads)` reads at first to speed things up.
 
 
 ```{r 'load datasets', echo=FALSE}
 directory <- "C:/Users/worms/NGS Data/2022.06.07_drift_seq/90-666155004b/00_fastq/NNK/NNK7"
-induced_set <- read.csv(file = paste(directory, "induced_set_NNK7.csv", sep = "/"),
-                        nrow = 100000) 
+count_set <- read.csv(file = paste(directory, "count_set_NNK7.csv", sep = "/"),
+                        nrow = n_reads) 
 
 ```
 
 ## Summary
 
-Let's have a look at the distribution of enrichment ration:
+Let's have a look at the distribution of enrichment ratio:
 
-```{r echo=TRUE}
-summary(induced_set$enrichment_ratio)
+```{r echo=FALSE}
+tapply(count_set$enrichment_ratio, count_set$induction, summary)
+
+na_percent_induced <- count_set %>% 
+  filter(induction == "induced") %>%
+  select(enrichment_ratio) %>% 
+  is.na() %>% 
+  mean() %>%
+  round(digits = 2)
+
+na_percent_repressed <- count_set %>% 
+  filter(induction == "repressed") %>%
+  select(enrichment_ratio) %>% 
+  is.na() %>% 
+  mean() %>%
+  round(digits = 2)
 ```
-We can see that in induced conditions, most peptides becomes slightly less common. None are strongly purged and some are highly enriched. I take the large number of peptides with an enrichment ratio of <1 to basically be neutrally selected. Overall out of `r nrow(induced_set)` genes encoding peptides, `r induced_set %>% filter(enrichment_ratio < 1) %>% nrow()` have a enrichment ratio of less than 1, `r induced_set %>% filter(between(enrichment_ratio,1,2)) %>% nrow()` are weakly selected (enrichment ratio of between 1 and 2) and `r induced_set %>% filter(enrichment_ratio > 2) %>% nrow()` (`r induced_set %>% filter(enrichment_ratio > 2) %>% nrow() / nrow(induced_set) * 100`%) have an enrichment ratio of over 2.
+### NAs
+
+NAs here are the cases where there were no reads at the generation 1 but some after five generations. `r na_percent_induced * 100`% of genes in the induced set and `r na_percent_repressed * 100`% in the repressed sets are such NAs. Interesting that way more reads are such NAs for the repressed set, despite it being generally less enriched.
+
+### Other reads
+
+```{r}
+intervals <- c(0,0.1,0.25,0.5,0.75,0.9,0.99,1)
+tapply(count_set$enrichment_ratio, count_set$induction, quantile, na.rm = TRUE, probs = intervals)
+```
+
+We can see that in both conditions, most peptides becomes slightly less common. None are strongly purged and some are highly enriched. There are however a number of peptides with relatively low enrichment ratio (< 0.6). That's `r count_set %>% filter(enrichment_ratio < 0.6) %>% nrow()`, or `r (count_set %>% filter(enrichment_ratio < 0.6) %>% nrow()/nrow(count_set)) %>% round(digits = 3 )*100` % of the total. I take the large number of peptides with an enrichment ratio of <1 to basically be neutrally selected. Overall out of `r nrow(count_set)` genes encoding peptides, `r count_set %>% filter(enrichment_ratio < 1) %>% nrow()` have a enrichment ratio of less than 1, `r count_set %>% filter(between(enrichment_ratio,1,2)) %>% nrow()` are weakly selected (enrichment ratio of between 1 and 2) and `r count_set %>% filter(enrichment_ratio > 2) %>% nrow()` (`r count_set %>% filter(enrichment_ratio > 2) %>% nrow() / nrow(count_set) * 100`%) have an enrichment ratio of over 2.
 
 ```{r, 'graph low enrichment', echo=FALSE}
-ggplot(induced_set %>%
-         filter(enrichment_ratio < 1.25), aes(enrichment_ratio)) +
+ggplot(count_set %>%
+         filter(between(enrichment_ratio, 1.05, 1.15)), aes(enrichment_ratio)) +
   geom_histogram(bins = 30, color = "black", fill = "lightblue") +
   labs(x = "Enrichment Ratio", y = "Frequency") +
   ggtitle("Histogram of the enrichment ratio for enrichment < 1.25")
 ```
+```{r echo=FALSE}
+get_enrichment_ratio_sd <- function(data.frame, max_ratio = 2, round_sd = FALSE){
+  x <- data.frame %>%
+    filter(enrichment_ratio < max_ratio) %>%
+    select(enrichment_ratio) %>%
+    .[[1]] %>%
+    sd()
+    
+  if(round_sd){
+    return(x %>% round(digits = 2))
+  }
+  else{
+    return(x)
+  }
+}    
+```
+
+
+Compared to the induced set, the distribution of enrichment ratio seems a bit wider. This seems to old if you look at the standard deviation of weakly enriched genes for the induced set (`r count_set %>% get_enrichment_ratio_sd(max_ratio = 1.5, round_sd = TRUE)`) and repressed set (`r count_set %>% get_enrichment_ratio_sd(max_ratio = 1.5, round_sd = TRUE)`). That's interesting, but I don't know if it is meaningful. 
+
+```{r}
+count_set %>% get_enrichment_ratio_sd(max_ratio = 1.5)
+count_set %>% get_enrichment_ratio_sd(max_ratio = 1.5)
+```
+
 
 If we look at it taking the log2 of the enrichment ratio, we get the followin graph. There seems to be a relatively uniform distribution of genes with enrichment ratio between 2 and 128.
 
 ```{r echo=FALSE}
-ggplot(induced_set %>%
-         filter(enrichment_ratio_log > 0.5), aes(enrichment_ratio_log)) +
+ggplot(count_set %>%
+         filter(enrichment_ratio_log > 1), aes(enrichment_ratio_log)) +
   geom_histogram(bins = 30, color = "black", fill = "lightblue") +
   labs(x = "Log(Enrichment Ratio)", y = "Frequency") +
-  ggtitle("Histogram of the enrichment ratio for log(enrichment) > 0.5")
+  ggtitle("Histogram of the enrichment ratio for log(enrichment) > 1")
 ```
 
 
@@ -60,63 +112,35 @@ This is strange as we expect some toxic peptides. And they don't seem to be many
 ## Peptides with stop codons
 
 ```{r echo=FALSE}
-induced_set_stops <- induced_set %>%
+count_set_stops <- count_set %>%
   filter(grepl("\\*", peptide_seq))
 ```
 
-I'll now subset the `r nrow(induced_set_stops)` sequences (`r nrow(induced_set_stops)/nrow(induced_set)*100`% of the total) that contains stop codons. The percentage I would expect with peptides containing 7 randomized NNK codons is `r (1-(31/32)^7)*100`% of the total, so this is consistent. 
+I'll now subset the `r nrow(count_set_stops)` sequences (`r (nrow(count_set_stops)/nrow(count_set)*100) %>% round(digits = 2)`% of the total) that contains stop codons. The percentage I would expect with peptides containing 7 randomized NNK codons is `r ((1-(31/32)^7)*100) %>% round(digits = 2)`% of the total, so this is consistent. 
 
 ```{r echo=FALSE}
-ggplot(induced_set_stops %>%
+ggplot(count_set_stops %>%
          filter(enrichment_ratio < 1.25), aes(enrichment_ratio)) +
   geom_histogram(bins = 30, color = "black", fill = "lightblue") +
   labs(x = "Enrichment Ratio", y = "Frequency") +
-  ggtitle("Histogram of the enrichment ratio for enrichment < 1.25")
+  ggtitle("Histogram of the enrichment ratio of peptides with stop codons for enrichment < 1.25")
 ```
 
 
 ```{r echo=FALSE}
-ggplot(induced_set_stops %>%
+ggplot(count_set_stops %>%
          filter(enrichment_ratio_log > 0.5), aes(enrichment_ratio_log)) +
   geom_histogram(bins = 10, color = "black", fill = "lightblue") +
   labs(x = "Log(Enrichment Ratio)", y = "Frequency") +
-  ggtitle("Histogram of the enrichment ratio for log(enrichment) > 0.5")
+  ggtitle("Histogram of the enrichment ratio of peptides with stop codons for log(enrichment) > 0.5")
 ```
 
-The general patterns of stop codon containing peptides is similar to the overall pattern, which kind of sucks. `r induced_set_stops %>% filter(enrichment_ratio > 2) %>% nrow()` (`r induced_set_stops %>% filter(enrichment_ratio > 2) %>% nrow() / nrow(induced_set_stops) * 100`%) have an enrichment ratio of over 2.
+The general patterns of stop codon containing peptides is similar to the overall pattern, which kind of sucks. `r count_set_stops %>% filter(enrichment_ratio > 2) %>% nrow()` (`r (count_set_stops %>% filter(enrichment_ratio > 2) %>% nrow() / nrow(count_set_stops) * 100) %>% round(digits = 2)`%) have an enrichment ratio of over 2. This is almost exactly the same as those without stop codons. 
+
+
 
 
 ```{r echo=FALSE}
-enrichment_threshold <- 0
-
-very_induced_set <- induced_set %>% filter(enrichment_ratio > enrichment_threshold)
-
-print(paste("In total, ",
-            nrow(very_induced_set),
-            " DNA sequences have an enrichment ratio of more than ",
-            enrichment_threshold,
-            "",
-            sep = ""))
-n_dna <- length(unique(very_induced_set$seq))
-n_peptide <- length(unique(very_induced_set$peptide_seq))
-
-table_counts <- table(very_induced_set$peptide_seq)
-
-very_induced_set <- very_induced_set %>%
-  mutate(pep_count = as.numeric(table_counts[peptide_seq]))
-
-very_induced_set %>% 
-  select(enrichment_ratio) %>%
-  summary()
-
-very_induced_set %>%
-  filter(pep_count >= 3) %>% 
-  select(enrichment_ratio) %>%
-  summary()
-
-ggplot(very_induced_set, aes(pep_count, enrichment_ratio_log)) + 
-  geom_point() + 
-  geom_smooth(method = "lm", se = FALSE)
 
 ```
 

@@ -47,12 +47,19 @@ ggplot(repressed_set %>%
 ```
 ```{r echo=FALSE}
 get_enrichment_ratio_sd <- function(data.frame, max_ratio = 2, round_sd = FALSE){
-
-    x <- data.frame %>%
-filter(enrichment_ratio < max_ratio) %>%
-select(enrichment_ratio) %>%
-.[[1]] %>%
-sd()
+  x <- data.frame %>%
+    filter(enrichment_ratio < max_ratio) %>%
+    select(enrichment_ratio) %>%
+    .[[1]] %>%
+    sd()
+    
+  if(round_sd){
+    return(x %>% round(digits = 2))
+  }
+  else{
+    return(x)
+  }
+}    
 ```
 
 
@@ -60,17 +67,6 @@ sd()
 Compared to the induced set, the distribution of enrichment ratio seems a bit wider. This seems to old if you look at the standard deviation of weakly enriched genes for the induced set (`r induced_set %>% get_enrichment_ratio_sd(max_ratio = 1.5, round_sd = TRUE)`) and repressed set (`r repressed_set %>% get_enrichment_ratio_sd(max_ratio = 1.5, round_sd = TRUE)`). That's interesting, but I don't know if it is meaningful. 
 
 ```{r}
-
-  
-  if(round_sd){
-    return(x %>% round(digits = 2))
-  }
-  else{
-    return(x)
-  }
-  
-}
-
 induced_set %>% get_enrichment_ratio_sd(max_ratio = 1.5)
 repressed_set %>% get_enrichment_ratio_sd(max_ratio = 1.5)
 ```

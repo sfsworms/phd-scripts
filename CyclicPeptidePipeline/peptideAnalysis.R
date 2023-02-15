@@ -69,7 +69,25 @@ peptide_types <- file_list[1] %>%
 
 peptide_types <- paste(peptide_types, nchar(merged_set[1, 1])/3 - 1, sep = "")
 
-write.csv(induced_set, file = file.path(directory, paste("induced_set_", peptide_types, ".csv", sep = "")))
+write.csv(induced_set, file = file.path(dirname(directory), 
+                                        paste("induced_set_", 
+                                              peptide_types, 
+                                              ".csv", sep = "")))
 
-write.csv(repressed_set, file = file.path(directory, paste("repressed_set_", peptide_types, ".csv",
+write.csv(repressed_set, file = file.path(dirname(directory), paste("repressed_set_", peptide_types, ".csv",
   sep = "")))
+
+## Make a merged long set and write it
+
+count_set <- rbind(induced_set %>% 
+                     mutate(induction = "induced"),
+                   repressed_set %>%
+                     mutate(induction = "repressed")) %>%
+              mutate(induction = as.factor(induction))
+
+## Randomize the order of the data frame so I can just grab a part of it.
+
+count_set <- count_set[sample(nrow(count_set)), ]
+
+write.csv(count_set, file = file.path(dirname(directory), paste("count_set_", peptide_types, ".csv",
+                                                           sep = "")))
