@@ -4,6 +4,7 @@
 library(tidyverse)
 library(Biostrings)
 library(universalmotif) #Do generation of peptides
+library(ShortRead) #Needed to read the large fastq files
 
 #Those are useful values
 codonAlphabet <- names(GENETIC_CODE)
@@ -29,16 +30,17 @@ create.lib <- function(libSize = 10, pepLength = 4, alphabet = c("XXX","YYY")){
 
 #Extract the peptide from a dnaSeq sequence. regexPattern should be the sequence right before the peptides. 
 
-extract.peptide = function(dnaSeq, regexPattern = "TGGCTTCATTGCGAGCAAT", pepSize = 24){
-  pepPosition <- str_locate(dnaSeq, regexPattern)[,2]
+extract.peptide <- function(dnaSeq, regexPattern = "TGGCTTCATTGCGAGCAAT", pepSize = 24){
+  pepPosition <- str_locate(dnaSeq %>% as.character(), regexPattern)[,2]
   sensiblePos <- pepPosition+pepSize < 145 #Added this for weird case where the pattern is present near the end
   peptideList <- subseq(x = dnaSeq[sensiblePos], start = pepPosition[sensiblePos]+1, end = pepPosition[sensiblePos]+pepSize)
+  rm(pepPosition, sensiblePos)
   return(peptideList)
 }
 
 #Extract all peptides from the fastq of a run. Takes the name of the file, the destination where tos tore the peptide,
 #the sequence just in front and behing the peptide and the size of the peptides.
-extract.peptides.fastq = function(fileName, 
+extract.peptides.fastq = function(file_name, 
                                    destination, 
                                    frontPattern = "TTCATTGCGAGCAAT",
                                    backPattern = "TGTCTGTCTTACGACA",
@@ -50,7 +52,7 @@ extract.peptides.fastq = function(fileName,
   
   # I first need to get a connection established.
   # open the connection
-  stream <- FastqStreamer(fileName)
+  stream <- FastqStreamer(file_name)
   on.exit(close(stream))
   
   #This is just to track the speed of processing of the file.
@@ -60,13 +62,12 @@ extract.peptides.fastq = function(fileName,
   dnaSeq <- yield(stream)
   
   while(length(dnaSeq) > 0){
-    print(c(i,fileName))
+    print(c(i,file_name))
     print(proc.time() - ptm)
     i = i+1
     
     # Filter the one that are way too small (<145 bp out of 150, about 0.5% of seq for
     # NNK7)
-    dnaSeq <- yield(stream)
     dnaSeq = dnaSeq[width(dnaSeq) > 145]
     
     # Convert to a DNAStringSet
@@ -116,9 +117,9 @@ extract.peptides.fastq = function(fileName,
     # intein sequence anyway#Take their reverse complement: problem, we don't get
     # barcode on those reads
     
-    frontPos = str_locate(revDnaSeq, frontPattern)[,2]+1
+    frontPos = str_locate(revDnaSeq %>% as.character(), frontPattern)[,2]+1
     
-    backPos = str_locate(revDnaSeq, backPattern)[,1]-1
+    backPos = str_locate(revDnaSeq %>% as.character(), backPattern)[,1]-1
     
     makeSense <- frontPos < backPos #Check the back is after the front
     
@@ -151,7 +152,7 @@ extract.peptides.fastq = function(fileName,
     
     writeFasta(shortPep, 
                file.path(destination, 
-                         gsub(basename(fileName), 
+                         gsub(basename(file_name), 
                               pattern = ".fastq.gz", 
                               replacement = paste("_peptide", 
                                                   shortPeptideSize, 
@@ -160,13 +161,16 @@ extract.peptides.fastq = function(fileName,
     
     writeFasta(longPep, 
                file.path(destination, 
-                         gsub(basename(fileName), 
+                         gsub(basename(file_name), 
                               pattern = ".fastq.gz", 
                               replacement = paste("_peptide", 
                                                   largePeptideSize, 
                                                   ".fa", sep=""))), 
                mode = "a")
+  dnaSeq <- yield(stream)
   }
+  #Load the next batch of reads 
+
 }
 
 ## Compute sum of counts for each condition and then compute ratios of each read as a percentage of total
