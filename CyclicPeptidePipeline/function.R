@@ -52,7 +52,8 @@ extract.peptides.fastq = function(file_name,
   
   # I first need to get a connection established.
   # open the connection
-  stream <- FastqStreamer(file_name)
+  reads_per_batch <- 10^6
+  stream <- FastqStreamer(file_name, n = reads_per_batch)
   on.exit(close(stream))
   
   #This is just to track the speed of processing of the file.
@@ -62,10 +63,6 @@ extract.peptides.fastq = function(file_name,
   dnaSeq <- yield(stream)
   
   while(length(dnaSeq) > 0){
-    print(c(i,file_name))
-    print(proc.time() - ptm)
-    i = i+1
-    
     # Filter the one that are way too small (<145 bp out of 150, about 0.5% of seq for
     # NNK7)
     dnaSeq = dnaSeq[width(dnaSeq) > 145]
@@ -150,6 +147,8 @@ extract.peptides.fastq = function(file_name,
     
     shortPep <- append(fwdShortPep, revShortPep)
     
+    
+    
     writeFasta(shortPep, 
                file.path(destination, 
                          gsub(basename(file_name), 
@@ -168,6 +167,12 @@ extract.peptides.fastq = function(file_name,
                                                   ".fa", sep=""))), 
                mode = "a")
   dnaSeq <- yield(stream)
+  
+  # Give progress info
+  
+  paste("Out of ", reads_per_batch," reads in batch ", i, " of file ",basename(file_name)," ",length(shortPep)+length(longPep)," encoded for peptides.") %>% print()
+  print(proc.time() - ptm)
+  i = i+1
   }
   #Load the next batch of reads 
 
