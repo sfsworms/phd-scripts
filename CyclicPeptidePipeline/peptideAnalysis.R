@@ -11,7 +11,7 @@ library(tidyverse)  #Needed for data wrangling
 library(bioseq)  # Used to translate sequence
 
 # This folder should contain the CSV files with a column for sequence and a column for counts
-directory <- "C:/Users/worms/NGS Data/2022.06.07_drift_seq/90-666155004b/00_fastq/NNK/NNK7/counts_csv"
+directory <- "C:/Users/worms/NGS Data/2022.06.07_drift_seq/90-666155004b/00_fastq/NNB/NNB3/peptides_counts_csv"
 
 # Get the names of the counts .csv files
 
@@ -21,8 +21,8 @@ file_list <- file_list[grepl(".csv", file_list)]
 # Trim the file names to use as variable names.
 
 run_names <- file_list %>%
-  gsub("Cytoplasmic-NNK-", "", .) %>%
-  gsub("_001_peptide24_count_aa.csv", "", .) %>%
+  gsub("Periplasmic-NNB-", "", .) %>%
+  gsub("_001_peptide12_count.csv", "", .) %>%
   tolower() %>%
   gsub("-", "_", .) %>%
   gsub("gen_", "gen", .)
@@ -69,13 +69,15 @@ peptide_types <- file_list[1] %>%
 
 peptide_types <- paste(peptide_types, nchar(merged_set[1, 1])/3 - 1, sep = "")
 
-write.csv(induced_set, file = file.path(dirname(directory), 
+write.csv2(induced_set, 
+           file = file.path(dirname(directory), 
                                         paste("induced_set_", 
                                               peptide_types, 
-                                              ".csv", sep = "")))
+                                              ".csv", sep = "")),
+           row.names = FALSE)
 
-write.csv(repressed_set, file = file.path(dirname(directory), paste("repressed_set_", peptide_types, ".csv",
-  sep = "")))
+write.csv2(repressed_set, file = file.path(dirname(directory), paste("repressed_set_", peptide_types, ".csv",
+  sep = "")),row.names = FALSE)
 
 ## Make a merged long set and write it
 
@@ -89,5 +91,8 @@ count_set <- rbind(induced_set %>%
 
 count_set <- count_set[sample(nrow(count_set)), ]
 
-write.csv(count_set, file = file.path(dirname(directory), paste("count_set_", peptide_types, ".csv",
-                                                           sep = "")))
+write.csv2(count_set, 
+          file = file.path(dirname(directory), paste("count_set_", peptide_types, ".csv",
+                                                           sep = "")),
+          row.names = FALSE)
+
