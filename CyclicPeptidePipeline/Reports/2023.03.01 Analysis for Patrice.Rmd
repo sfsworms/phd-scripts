@@ -1,10 +1,16 @@
 ---
 title: "Analysis of cyclic peptides"
+author: "Sebastian Worms"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
 output:
-  html_notebook: default
-  toc: yes
   html_document:
+    toc: true # table of content true
+    toc_depth: 3  # upto three depths of headings (specified by #, ## and ###)
+    number_sections: true  ## if you want number sections at each table header
+    theme: united  # many options for theme, this one is my favorite.
+    highlight: tango  # specifies the syntax highlighting style
     df_print: paged
+  html_notebook: default
   pdf_document: default
 ---
 
