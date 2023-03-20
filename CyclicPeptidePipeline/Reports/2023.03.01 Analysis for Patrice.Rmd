@@ -24,7 +24,8 @@ library(ggplot2)
 source("C:/Users/worms/Dropbox/PhD/PhD-Scripts/CyclicPeptidePipeline/function.R")
 
 #Work with a limited number of reads to get something I can work with easily.
-n_reads <- 1*10^5
+n_reads <- 1*10^6
+
 ```
 
 # Introduction
@@ -32,16 +33,16 @@ n_reads <- 1*10^5
 This is the analysis of the peptides from the drift experiment. The required datasets were created in the "peptideAnalysis.R" file. I'm going to do it on a subset of of `r print(n_reads)` reads for both short and large datasets at first to speed things up.
 
 ```{r 'load datasets', echo=FALSE}
-directory <- "C:/Users/worms/NGS Data/2022.06.07_drift_seq/90-666155004b/00_fastq/NNK"
-# NNK7<- read.csv2(file = paste(directory, 
-#                                         "NNK7",
-#                                         "count_set_NNK7.csv", sep = "/"),
-#                         nrow = n_reads) 
+directory <- "C:/Users/worms/NGS Data/2022.06.07_drift_seq/90-666155004b/00_fastq"
+NNK7<- read.csv2(file = paste(directory,
+                              "NNK",
+                              "NNK7",
+                              "count_set_NNK7.csv", sep = "/"),
+                        nrow = n_reads)
 
-NNK3 <- read.csv2(file = paste(directory, 
-                                        "NNK3",
-                                        "count_set_NNK3.csv", sep = "/"),
-                        nrow = n_reads) 
+NNK3 <- read.csv2(file = file.path(directory,
+                                   "all_NNK3.csv"),
+                  nrow = n_reads) 
 ```
 
 ## Short peptides
@@ -72,6 +73,9 @@ na_percent_repressed <- NNK3%>%
 ```{r}
 NNK3_stops <- NNK3 %>%
   filter(grepl("\\*", peptide_seq))
+
+NNK3_no_stops <- NNK3 %>%
+  filter(!grepl("\\*", peptide_seq))
 ```
 
 Let's look at the subset of sequences with stops codons. `r nrow(NNK3_stops)` sequences (`r (nrow(NNK3_stops)/nrow(NNK3)*100) %>% round(digits = 2)`% of the total) contains stop codons. The percentage I would expect with peptides containing 3 randomized NNK codons is `r ((1-(31/32)^3)*100) %>% round(digits = 2)`% of the total, so this is much higher than expected.Looking at the sequence I have something odd in that many of the sequences don't have a starting cysteine.
@@ -84,9 +88,12 @@ NNK3_correct <- NNK3%>%
 
 NNK3_stops_correct <- NNK3_correct %>%
   filter(grepl("\\*", peptide_seq))
+
+NNK3_correct_no_stops <- NNK3_correct %>%
+  filter(!grepl("\\*", peptide_seq))
 ```
 
-This is a surprisingly large number: `r nrow(NNK3)-nrow(NNK3_correct)` out of `r nrow(NNK3)` (`r 100-((nrow(NNK3_correct)/nrow(NNK3)*100)%>% round(digit = 2))`%)
+This is a surprisingly large number: `r nrow(NNK3)-nrow(NNK3_correct)` out of `r nrow(NNK3)` (`r 100-((nrow(NNK3_correct)/nrow(NNK3)*100)%>% round(digit = 2))`%). Although that's the number of sequences, not the number or reads. We have `r NNK3_correct %>% select(c("gen1_sum","gen5_sum")) %>% sum()` correct reads out of `r NNK3 %>% select(c("gen1_sum","gen5_sum")) %>% sum()` (`r ((NNK3_correct %>% select(c("gen1_sum","gen5_sum")) %>% sum())/(NNK3 %>% select(c("gen1_sum","gen5_sum")) %>% sum()) *100) %>% round(digit = 2)`%), almost all of them.
 
 So looking at only the sequences starting with TGC, we have `r (nrow(NNK3_stops_correct)/nrow(NNK3_correct)*100) %>% round(digits = 2)`% of stop codons, much closer to the expected `r ((1-(31/32)^3)*100) %>% round(digits = 2)`%. We'll subset only the correct ones for downstream analysis and work with the NNK3_correct data set.
 
@@ -213,10 +220,13 @@ colnames(mean_enrichment_ratio_log) <- c("peptide_seq", "enrichment_ratio_repres
 
 correlation <- cor(mean_enrichment_ratio_log$enrichment_ratio_repressed, mean_enrichment_ratio_log$enrichment_ratio_induced)
 
-p <- ggplot(mean_enrichment_ratio_log, aes(x = enrichment_ratio_induced, y = enrichment_ratio_repressed)) +
-  geom_point() +
+p <- ggplot(mean_enrichment_ratio_log %>% filter(enrichment_ratio_repressed > -1.5), aes(x = enrichment_ratio_induced, y = enrichment_ratio_repressed)) +
+  geom_point(alpha = 0.1) +
   xlab("Log2(Enrichment ratio) in the induced condition") +
-  ylab("Log2(Enrichment ratio) in the repressed condition")
+  ylab("Log2(Enrichment ratio) in the repressed condition") +
+  geom_abline(slope = 1, intercept =0)
+
+p
 
 ```
 
@@ -225,6 +235,30 @@ There is fairly good correlation (`r correlation %>% round(digit = 2)`) between 
 ```{r, include=TRUE}
 p
 ```
+
+### 'RR' motifs
+
+RR motifs are known to interfere with the membrane. Let look at the peptides with those motifs.
+
+```{r}
+NNK3_RR <- NNK3_correct_no_stops %>% 
+      filter(grepl("RR", peptide_seq))
+
+tapply(NNK3$enrichment_ratio, NNK3$condition, summary)
+
+# Color the points with RR motifs
+
+mean_enrichment_ratio_log$RR <- mean_enrichment_ratio_log$peptide_seq %>% grepl("RR", .) %>% ifelse(., "RR", "not RR")
+
+p <- ggplot(mean_enrichment_ratio_log, aes(x = enrichment_ratio_induced, y = enrichment_ratio_repressed, color = RR)) +
+  geom_point(alpha = 0.5, size = 1) +
+  facet_grid(RR ~ .) +
+  xlab("Log2(Enrichment ratio) in the induced condition") +
+  ylab("Log2(Enrichment ratio) in the repressed condition")
+
+p
+```
+
 
 ### Enrichment by charge
 
@@ -235,7 +269,5 @@ p
 ### Hydrophobicity
 
 ### Initial ration and enrichment ratios
-
-### 'RR' motifs
 
 ### His-rich peptides
