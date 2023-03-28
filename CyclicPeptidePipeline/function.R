@@ -61,10 +61,15 @@ extract.peptides.fastq = function(file_name,
   ptm = proc.time()
   
   dnaSeq <- yield(stream)
-  
+  tracking_df <- data.frame(n_reads = 0,
+                            n_short_peptide = 0,
+                            n_long_peptide = 0)
   while(length(dnaSeq) > 0){
     # Filter the one that are way too small (<145 bp out of 150, about 0.5% of seq for
     # NNK7)
+    length_dnaSeq <- length(dnaSeq)
+    tracking_df <- tracking_df %>% mutate(n_reads = n_reads+length_dnaSeq) # Tracking purpose
+    
     dnaSeq = dnaSeq[width(dnaSeq) > 145]
     
     # Convert to a DNAStringSet
@@ -111,8 +116,7 @@ extract.peptides.fastq = function(file_name,
                                   as.character())]
     
     # I do not have a barcode but I can get the size of the peptide by looking at the
-    # intein sequence anyway#Take their reverse complement: problem, we don't get
-    # barcode on those reads
+    # intein sequence anyway
     
     frontPos = str_locate(revDnaSeq %>% as.character(), frontPattern)[,2]+1
     
@@ -147,6 +151,8 @@ extract.peptides.fastq = function(file_name,
     
     shortPep <- append(fwdShortPep, revShortPep)
     
+    tracking_df <- tracking_df %>% mutate(n_short_peptide = n_short_peptide + length(shortPep),
+                           n_long_peptide = n_long_peptide + length(longPep),)
     
     
     writeFasta(shortPep, 
@@ -170,11 +176,16 @@ extract.peptides.fastq = function(file_name,
   
   # Give progress info
   
-  paste("Out of ", reads_per_batch," reads in batch ", i, " of file ",basename(file_name)," ",length(shortPep)+length(longPep)," encoded for peptides.") %>% print()
+  paste("Out of ", length_dnaSeq," reads in batch ", i, " of file ",basename(file_name)," ",length(shortPep)+length(longPep)," encoded for peptides.") %>% print()
   print(proc.time() - ptm)
   i = i+1
+  gc()
   }
-  #Load the next batch of reads 
+  #Load the next batch of reads
+  
+  tracking_df %>% mutate(file = basename(file_name))
+  
+  return(tracking_df)
 
 }
 

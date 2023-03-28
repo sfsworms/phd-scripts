@@ -2,6 +2,7 @@ from Bio import SeqIO
 import pickle
 import sys
 import os
+import csv
 
 SOURCE_FOLDER = sys.argv[1] # Nom du dossier contenant les fichiers qu'on veut split, qui doit être dans le même répertoire. Importé comme un argument du programme.
 DESTINATION_FOLDER = sys.argv[2]
@@ -21,15 +22,16 @@ def check_size(FILE, size=PEPTIDE_LENGTH):
 # Comptage
 
 
-def get_count_dna(fasta_file, peptides=dict()):
+def get_count_dna(fasta_file):
     """Compte l'occurence de chaque gène encodant un peptide.
     Sortie: un dictionnaire dont les clés sont des séquences (objet seq)"""
+    peptides = dict()
     count = 0
     indiv_count = 0
     for record in SeqIO.parse(fasta_file, FILE_TYPE):
         count = count + 1
         if count % 1000000 == 0:
-            print("We have processed " + str(count) + " records.") #Just so I know it is running
+            print("We have processed " + str(count/1000000) + "millions records.") #Just so I know it is running
         try:
             peptides[record.seq] += 1
         except:
@@ -51,12 +53,27 @@ for file in os.listdir(SOURCE_FOLDER):
         file_list.append(file)
 
 # Treat the files and save the pickled results
+results = [] #Used to store the results
+
+csv_filename = os.path.basename(SOURCE_FOLDER)  + "_summary.csv" # Create the tracking csv
+
 
 for file in file_list:
     output_file_name = file.replace(".fa", "_count_pickle")
     saved_file = open(DESTINATION_FOLDER+"\\"+output_file_name, mode="ab")
-    peptides = get_count_dna(SOURCE_FOLDER+"\\"+file)
-    pickle.dump(peptides, saved_file)
+    peptides_list = get_count_dna(SOURCE_FOLDER+"\\"+file)
+    pickle.dump(peptides_list, saved_file) # Dump the files
+    total_seqs = len(peptides_list) # Count the sequences
+    total_counts = sum(peptides_list.values())
+    
+    with open(DESTINATION_FOLDER + "\\" + csv_filename, mode="a", newline='') as output_file:
+        if output_file.tell() == 0:  # check if file is empty
+            writer = csv.writer(output_file)
+            writer.writerow(["file", "total_counts", "total_seqs"])
+        writer = csv.writer(output_file)
+        writer.writerow([file, total_counts, total_seqs])
+
+
 
 # Readable_file = open("Count Saves bis", mode="rb")
 # peptides = pickle.load(Readable_file)
