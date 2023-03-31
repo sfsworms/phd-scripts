@@ -14,7 +14,6 @@ fnRs <- sort(list.files(path, pattern = "_R2_001.fastq.gz", full.names = TRUE))
 # Extract sample names, assuming filenames have format: SAMPLENAME_XXX.fastq
 sample.names <- sapply(strsplit(basename(fnFs), "_"), `[`, 1)
 
-
 # In gray-scale is a heat map of the frequency of each quality score at each base position. The mean
 # quality score at each position is shown by the green line, and the quartiles of the quality score
 # distribution by the orange lines. The red line shows the scaled proportion of reads that extend to

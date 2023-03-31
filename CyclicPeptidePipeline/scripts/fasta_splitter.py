@@ -1,4 +1,4 @@
-from Bio import SeqIO
+import Bio
 import sys
 
 FILE_TYPE = "fasta"
@@ -51,11 +51,11 @@ def batch_iterator(iterator, batch_size):
             yield batch
 
 def split_data():
-    record_iter = SeqIO.parse(open(file_to_split), FILE_TYPE)
+    record_iter = Bio.SeqIO.parse(open(file_to_split), FILE_TYPE)
     for i, batch in enumerate(batch_iterator(record_iter, batch_size)):
         filename = "group_%i.fasta" % (i + 1)
         with open(filename, "w") as handle:
-            count = SeqIO.write(batch, handle, "fasta")
+            count = Bio.SeqIO.write(batch, handle, "fasta")
         print("Wrote %i records to %s" % (count, filename))
 
 split_data()
