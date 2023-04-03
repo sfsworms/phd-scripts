@@ -2,14 +2,15 @@
 
 ## This script will serve to merge the forward and reverse reads or the files.
 
+library(tidyverse)
 library(dada2)
+library(ShortRead) # Just want a closer look at quality
 
-path <- "C:/Users/worms/NGS Data/2022.06.07_drift_seq/90-666155004b/00_fastq/NNK"
-list.files(path)
+path <- "C:/Users/worms/NGS Data/2022.06.07_drift_seq/90-666155004b/00_fastq/NNK/dada2_test"
 
 # Forward and reverse fastq filenames have format: SAMPLENAME_R1_001.fastq and SAMPLENAME_R2_001.fastq
-fnFs <- sort(list.files(path, pattern = "_R1_001.fastq.gz", full.names = TRUE))
-fnRs <- sort(list.files(path, pattern = "_R2_001.fastq.gz", full.names = TRUE))
+fnFs <- sort(list.files(path, pattern = "_R1_001_sample.fastq.gz", full.names = TRUE))
+fnRs <- sort(list.files(path, pattern = "_R2_001_sample.fastq.gz", full.names = TRUE))
 
 # Extract sample names, assuming filenames have format: SAMPLENAME_XXX.fastq
 sample.names <- sapply(strsplit(basename(fnFs), "_"), `[`, 1)
@@ -23,8 +24,8 @@ sample.names <- sapply(strsplit(basename(fnFs), "_"), `[`, 1)
 # arise there. These quality profiles do not suggest that any additional trimming is needed. We will
 # truncate the forward reads at position 240 (trimming the last 10 nucleotides).
 
-plotQualityProfile(fnRs[1:2])
-plotQualityProfile(fnRs[1:3])
+plotQualityProfile(fnFs)
+plotQualityProfile(fnRs)
 #Reverse read are usually not as good and need to be trimmed more aggressively.
 
 # Place filtered files in filtered/ subdirectory
@@ -69,9 +70,12 @@ if(length(fastqFs) != length(fastqRs)) stop("Forward and reverse files do not ma
 # Filtering: THESE PARAMETERS ARENT OPTIMAL FOR ALL DATASETS
 filterAndTrim(fwd=file.path(pathF, fastqFs), filt=file.path(filtpathF, fastqFs),
               rev=file.path(pathR, fastqRs), filt.rev=file.path(filtpathR, fastqRs),
-              truncLen=c(145,145), maxEE=5, truncQ=2, maxN=0, rm.phix=TRUE,
+              truncLen=c(145,145), maxEE=c(3,5), truncQ=10, maxN=0, rm.phix=TRUE,
               compress=TRUE, verbose=TRUE, multithread=FALSE)
 
+
+# I have the occasional Q 11 base, if I filter those out I'm left with a tiny amount of sequences. Q11 still mean at ~1 in 10 chance of the base being wrong!
+# maxEE is the "maximum number of expected error" per read. Higher means less filtering, and more downstream processing. I'm allowing more on the reverse direction.
 
 # The above is 1) super slow, 2) only gives me 17% of filtered end pairs!
 # I'll create a shorter 
@@ -104,5 +108,6 @@ file_quality_test <- file.choose()
 
 plotQualityProfile(file_quality_test, n = 10000)
 
+R1_fastq <- readFastq(fnFs)
 
-
+readBaseQuality(fnFs)
