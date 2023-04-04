@@ -1,0 +1,16 @@
+==> 2022-07-06 16:37:47 <==
+# cmd: C:\Users\worms\Anaconda3\Scripts\conda-script.py create --prefix ./envs python=3.9
+# conda version: 4.12.0
++defaults/noarch::tzdata-2022a-hda174b7_0
++defaults/noarch::wheel-0.37.1-pyhd3eb1b0_0
++defaults/win-64::ca-certificates-2022.4.26-haa95532_0
++defaults/win-64::certifi-2022.6.15-py39haa95532_0
++defaults/win-64::openssl-1.1.1p-h2bbff1b_0
++defaults/win-64::pip-21.2.4-py39haa95532_0
++defaults/win-64::python-3.9.12-h6244533_0
++defaults/win-64::setuptools-61.2.0-py39haa95532_0
++defaults/win-64::sqlite-3.38.5-h2bbff1b_0
++defaults/win-64::vc-14.2-h21ff451_1
++defaults/win-64::vs2015_runtime-14.27.29016-h5e58377_2
++defaults/win-64::wincertstore-0.2-py39haa95532_2
+# update specs: ['python=3.9']
