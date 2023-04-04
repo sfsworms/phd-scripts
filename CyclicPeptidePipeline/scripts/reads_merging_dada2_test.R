@@ -79,35 +79,3 @@ filterAndTrim(fwd=file.path(pathF, fastqFs), filt=file.path(filtpathF, fastqFs),
 
 # The above is 1) super slow, 2) only gives me 17% of filtered end pairs!
 # I'll create a shorter 
-
-
-library(ShortRead)
-fileR1 <- file.choose()
-fileR2 <- file.choose()
-
-reads_per_batch <- 10^5
-
-stream <- FastqStreamer(fileR1, n = reads_per_batch)
-on.exit(close(stream))
-
-seqR1 <- yield(stream)
-
-writeFastq(seqR1, gsub("001.fastq.gz", "001_sample.fastq.gz",fileR1))
-close(stream)
-
-
-stream <- FastqStreamer(fileR2, n = reads_per_batch)
-on.exit(close(stream))
-
-seqR2 <- yield(stream)
-
-writeFastq(seqR2, gsub("001.fastq.gz", "001_sample.fastq.gz",fileR2))
-close(stream)
-
-file_quality_test <- file.choose()
-
-plotQualityProfile(file_quality_test, n = 10000)
-
-R1_fastq <- readFastq(fnFs)
-
-readBaseQuality(fnFs)
