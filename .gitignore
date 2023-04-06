@@ -1,6 +1,7 @@
 ## Ignore files in the document subfolder of cyclic peptide pipeline
 /cyclic_peptide_pipeline/documents/*
 
+
 ## Ignore all R sessions and saved environments
 .RData
 .Rhistory
