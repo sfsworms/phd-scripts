@@ -16,8 +16,15 @@ import os # To get list of files
 import csv # To export to csv
 import sys # To get the arguments
 
-SOURCE_FOLDER = sys.argv[1] # Nom du dossier avec les pickles
-DESTINATION_FOLDER = sys.argv[2]
+if len(sys.argv) == 1:
+    print("Error: you need to provide at least a source folder")
+    sys.exit(1)
+elif len(sys.argv) == 2:
+    SOURCE_FOLDER = sys.argv[1] # Nom du dossier avec les pickles
+    DESTINATION_FOLDER = os.path.join(os.path.dirname(SOURCE_FOLDER), "peptide_csv") # Stocke les pickles dans un dossier "count_csv" a coté du dossier source
+elif len(sys.argv) == 3:
+    SOURCE_FOLDER = sys.argv[1] # Nom du dossier avec les pickles
+    DESTINATION_FOLDER = sys.argv[2] # Nom du dossier de destination
 
 file_list = []
 
@@ -25,7 +32,7 @@ for file in os.listdir(SOURCE_FOLDER):
     if file.endswith("_pickle"):
         file_list.append(file)
     
-if file_list.len == 0:
+if len(file_list) == 0:
     print("Source folder doesn't contain files ending in '_pickle'")
     sys.exit(1)
 
