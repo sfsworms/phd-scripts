@@ -5,7 +5,10 @@ Created on Mon Jul 11 11:52:55 2022
 @author: worms
 
 Goal is to be able to take the pickled dictionarries created by count_peptides.py and turn them into files that can be imported in
-R for use with DESEq or dowstream analysis
+R for use with DESEq or dowstream analysis.
+
+Input is a folder with pickled count files (ending in '_pickle')
+Output is a folder containing the unpickled csv
 """
 
 import pickle # To unpickle things
@@ -16,7 +19,15 @@ import sys # To get the arguments
 SOURCE_FOLDER = sys.argv[1] # Nom du dossier avec les pickles
 DESTINATION_FOLDER = sys.argv[2]
 
-file_list = os.listdir(SOURCE_FOLDER)
+file_list = []
+
+for file in os.listdir(SOURCE_FOLDER):
+    if file.endswith("_pickle"):
+        file_list.append(file)
+    
+if file_list.len == 0:
+    print("Source folder doesn't contain files ending in '_pickle'")
+    sys.exit(1)
 
 def write_csv(file_to_write, nom):
     with open(nom, 'w') as f:
