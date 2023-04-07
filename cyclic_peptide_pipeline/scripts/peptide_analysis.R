@@ -3,7 +3,7 @@
 # analysis. That data frame has counts for all conditions as well as ratio of total read per
 # conditions and enrichment ratios.
 
-setwd(dir = "C:/Users/worms/Dropbox/phd_script/cyclic_peptide_pipeline")  # Directory containing the scripts
+setwd(dir = "C:/Users/worms/phd-scripts/cyclic_peptide_pipeline")  # Directory containing the scripts
 source("functions/function_analysis.R")  #Functions used in the script
 
 # Load necessary libraries
@@ -72,7 +72,7 @@ repressed_set_short <- repressed_set_short %>%
 
 ## Export the two data sets
 
-peptide_types <- "_short_"
+peptide_types <- "short"
 
 write.csv2(induced_set_short, 
            file = file.path(dirname(directory), 
@@ -130,7 +130,7 @@ repressed_set_long <- repressed_set_long %>%
 
 ## Export the two data sets
 
-peptide_types <- "_long_"
+peptide_types <- "long"
 
 write.csv2(induced_set_long, 
            file = file.path(dirname(directory), 
