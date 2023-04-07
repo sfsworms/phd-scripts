@@ -4,9 +4,15 @@ My pipeline for analysis. Started in april 2022 as part of my PhD project. Updat
 
 # Peptide analysis pipeline
 
+## Peptide trimming
+Done with the filterAndTrim() function of dada2. See file scripts/dada2/reads_filtering_dada2.R
+
+## Peptide merging
+Merge the paired end reads. Done with the FLASH software. (http://ccb.jhu.edu/software/FLASH/). See /other_tools/flash.bat
+
 ## Peptide sequence extraction
 
-Done with peptide_extraction.R. This saves all peptides from the sequencing files to a fasta file.in a folder called "peptide_sequence". There are versions depending on the type of intein.
+Done with peptide_extraction.R. This saves all peptides from the sequencing files to a fasta file in a folder called "peptide_sequence". There are versions depending on the type of intein.
 
 Output has this format: 
 >NNK3 fw
