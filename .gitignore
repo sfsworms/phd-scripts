@@ -1,5 +1,8 @@
-## Ignore files in the document subfolder of cyclic peptide pipeline
-/cyclic_peptide_pipeline/documents/*
+## Ignore files produced by my RMarkdown files
+/cyclic_peptide_pipeline/documents/plots
+/cyclic_peptide_pipeline/documents/rsconnect
+/cyclic_peptide_pipeline/documents/*.Rhistory
+/cyclic_peptide_pipeline/documents/*.html
 
 
 ## Ignore all R sessions and saved environments
