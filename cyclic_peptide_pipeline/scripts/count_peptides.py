@@ -47,6 +47,7 @@ def get_count_dna(fasta_file):
 
 # Get the list of .fa files to process
 
+file_list = []
 
 for file in os.listdir(SOURCE_FOLDER):
     if file.endswith(".fa"):
