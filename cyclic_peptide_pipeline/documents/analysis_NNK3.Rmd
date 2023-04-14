@@ -41,16 +41,35 @@ count_set <- read.csv2(file = file.path(directory, "count_set_short.csv"),
 # Going to drop all the infinite enrichment ratio to NA
 count_set <- count_set %>%
   mutate(enrichment_ratio = ifelse(is.infinite(enrichment_ratio),NA,enrichment_ratio)) %>%
-  mutate(enrichment_ratio_log = ifelse(is.infinite(enrichment_ratio_log),NA,enrichment_ratio_log))
+  mutate(enrichment_ratio_log = ifelse(is.infinite(enrichment_ratio_log),NA,enrichment_ratio_log)) 
 ```
 
-## Short peptides
+## Read quality
 
-Let's have a look at the distribution of enrichment ratio:
+### Stop codons
 
 ```{r}
-tapply(count_set$enrichment_ratio, count_set$induction, summary)
+unique_sequences <- count_set %>% pull(peptide_seq) %>% unique() %>% length()
+sequences_with_stop <- count_set %>% filter(grepl("\\*", peptide_seq)) %>% pull(peptide_seq) %>% unique() %>% length()
+sequences_no_stop <- count_set %>% filter(!grepl("\\*", peptide_seq)) %>% pull(peptide_seq) %>% unique() %>% length()
+percent_with_stop <- ((sequences_with_stop)/unique_sequences
+average_reads_with_stop <- ((count_set %>% filter(grepl("\\*", peptide_seq)) %>% select(c("gen1_12","gen5_12")) %>% sum())/sequences_with_stop) %>% round(digits = 2)
+average_reads_no_stop <- ((count_set %>% filter(!grepl("\\*", peptide_seq)) %>% select(c("gen1_12","gen5_12")) %>% sum())/sequences_with_stop) %>% round(digits = 2)
 
+```
+
+Let's look at the subset of sequences with stops codons. `rsequences_with_stop` sequences (`r percent_with_stop)`% of the total) contains stop codons. Those are mostly low-abundance sequence, with an average of `r count_set %>% filter(grepl("\\*", peptide_seq)) %>% select(c(gen`
+
+I will subtract the sequences that do not start with the correct codon (*TGC*).
+
+## Enrichment ratio
+
+Let's have a look at the distribution of enrichment ratio, having dropped all the enrichment ratios that were infinite, or zeroes (so not present in one of the two generation). Overall it looks like a pretty symetrical set.
+
+```{r}
+tapply(count_set %>% filter(enrichment_ratio > 0) %>% pull(enrichment_ratio), 
+       count_set %>% filter(enrichment_ratio > 0) %>% pull(induction), 
+       summary)
 
 na_percent_induced <- count_set%>% 
   filter(induction == "induced") %>%
@@ -67,19 +86,18 @@ na_percent_repressed <- count_set%>%
   round(digits = 2)
 ```
 
-### Stop codons
+```{r 'histogram enrichment'}
+p <- ggplot(count_set, aes(x = enrichment_ratio_log)) +
+  geom_histogram(color = "black", fill = "white") +
+  labs(title = "Histogram of log(Enrichment Ratio", x = "Log(Enrichment Ratio)", y = "Count") +
+  facet_grid(library~induction)
 
-```{r}
-count_set_stops <- count_set %>%
-  filter(grepl("\\*", peptide_seq))
+p
 
-count_set_no_stops <- count_set %>%
-  filter(!grepl("\\*", peptide_seq))
 ```
+Note that we're still looking at sequences, the higher numbers for nnb is due to higher number of low quality sequences.
 
-Let's look at the subset of sequences with stops codons. `r nrow(count_set_stops)` sequences (`r (nrow(count_set_stops)/nrow(count_set)*100) %>% round(digits = 2)`% of the total) contains stop codons. The percentage I would expect with peptides containing 3 randomized NNK codons is `r ((1-(31/32)^3)*100) %>% round(digits = 2)`% of the total, so this is much higher than expected.Looking at the sequence I have something odd in that many of the sequences don't have a starting cysteine.
 
-I will subtract the sequences that do not start with the correct codon (*TGC*).
 
 ```{r 'correct TGC', echo=FALSE}
 count_set_correct <- count_set%>%
@@ -90,59 +108,27 @@ count_set_stops_correct <- count_set_correct %>%
 
 count_set_correct_no_stops <- count_set_correct %>%
   filter(!grepl("\\*", peptide_seq))
+
+count_set_correct_no_na <- na.omit(count_set_correct)
 ```
 
 This is a surprisingly large number: `r nrow(count_set)-nrow(count_set_correct)` out of `r nrow(count_set)` (`r 100-((nrow(count_set_correct)/nrow(count_set)*100)%>% round(digit = 2))`%). Although that's the number of sequences, not the number or reads. We have `r count_set_correct %>% select(c("gen1_12","gen5_12")) %>% sum()` correct reads out of `r count_set %>% select(c("gen1_12","gen5_12")) %>% sum()` (`r ((count_set_correct %>% select(c("gen1_12","gen5_12")) %>% sum())/(count_set %>% select(c("gen1_12","gen5_12")) %>% sum()) *100) %>% round(digit = 2)`%), almost all of them.
 
 So looking at only the sequences starting with TGC, we have `r (nrow(count_set_stops_correct)/nrow(count_set_correct)*100) %>% round(digits = 2)`% of stop codons, much closer to the expected `r ((1-(31/32)^3)*100) %>% round(digits = 2)`%. We'll subset only the correct ones for downstream analysis and work with the count_set_correct data set.
 
-### NAs
 
-NAs here are the cases where there were no reads at the generation 1 but some after five generations. `r na_percent_induced * 100`% of genes in the induced set and `r na_percent_repressed * 100`% in the repressed sets are such NAs. Interesting that way more reads are such NAs for the repressed set, despite it being generally less enriched.
-
-Compared to the rest of the counts, the NAs usually have very low sequence counts even at the generation five and so probably represent rare peptides. That would explain the higher numbers of NAs in the repressed set.
-
-```{r 'select NAs'}
-count_set_na <- count_set[count_set%>% is.na() %>% rowSums() != 0,]
-tapply(count_set_na$gen5_12, count_set_na$induction, summary)
-tapply(count_set$gen5_12, count_set$induction, summary)
-
-```
-
-If those are rare, "fake" sequences that are artifact, I expect a very high rate of sequences that don't start with *TGC*. Let's check that.
-
-```{r 'correct sequence NA'}
-count_set_na_correct_nombre <- count_set_na %>%
-    filter(grepl("^TGC.*", seq)) %>%
-    nrow()
-```
-
-Out of `r nrow(count_set_na)` reads with NAs, `r count_set_na_correct_nombre` have a sequence that starts with *TGC*. That's `r 100-((count_set_na_correct_nombre/nrow(count_set_na)*100)%>% round(digit = 2))`% of wrong sequences, twice the average rate! This fits with the idea that rare sequences are the one causing issues.
-
-### Purged count_set sequences
-
-```{r}
-count_set_correct_no_na <- na.omit(count_set_correct)
-count_set_correct %>%
-  filter(enrichment_ratio < 1) %>%
-  select(enrichment_ratio) %>%
-  summary
-```
-
-Most peptides here are weakly purged. Of the `r nrow(count_set_correct_no_na)` peptides with an enrichment ratio that was computed, we have `r count_set_correct_no_na %>% filter(enrichment_ratio < 1) %>% nrow()` that are purged. But only `r count_set_correct_no_na %>% filter(enrichment_ratio < 0.5) %>% nrow()` (`r ((count_set_correct_no_na$enrichment_ratio %>% between(.,0,0.5) %>% mean())*100 )%>% round(.,digit = 2)`%) have seen their frequencies reduced at least twofold.
-
-#### What is the coverage?
+### Coverage
 
 ```{r 'checking coverage'}
 number_peptide_repressed <- count_set_correct %>%
-  filter(!grepl("/*", peptide_seq)) %>%
+  filter(!grepl("\\*", peptide_seq)) %>%
   filter(induction == "repressed") %>%
   select(peptide_seq) %>%
   unique() %>%
   nrow()
 
 number_peptide_induced <- count_set_correct %>%
-  filter(!grepl("/*", peptide_seq)) %>%
+  filter(!grepl("\\*", peptide_seq)) %>%
   filter(induction == "induced") %>%
   select(peptide_seq) %>%
   unique() %>%
@@ -150,7 +136,7 @@ number_peptide_induced <- count_set_correct %>%
 
 number_peptide_induced_no_na <- count_set_correct %>%
   na.omit() %>%
-  filter(!grepl("/*", peptide_seq)) %>%
+  filter(!grepl("\\*", peptide_seq)) %>%
   filter(induction == "induced") %>%
   select(peptide_seq) %>%
   unique() %>%
@@ -158,7 +144,7 @@ number_peptide_induced_no_na <- count_set_correct %>%
 
 number_peptide_repressed_no_na <- count_set_correct %>%
   na.omit() %>%
-  filter(!grepl("/*", peptide_seq)) %>%
+  filter(!grepl("\\*", peptide_seq)) %>%
   filter(induction == "repressed") %>%
   select(peptide_seq) %>%
   unique() %>%
@@ -167,6 +153,19 @@ number_peptide_repressed_no_na <- count_set_correct %>%
 
 With count_set peptides, we expect to have 20\^3 or `r 20^3` different possible peptide sequences (not counting cyclisation). In my case, I have `r number_peptide_repressed` peptides in the repressed condition and `r number_peptide_induced` in the induced condition, so almost perfect to perfect coverage. Those numbers are `r number_peptide_repressed_no_na` and `r number_peptide_induced_no_na` if one removes NAs.
 
+### Purged count_set sequences
+
+```{r}
+
+count_set_correct %>%
+  filter(enrichment_ratio < 1) %>%
+  select(enrichment_ratio) %>%
+  summary
+```
+
+Most peptides here are weakly purged. Of the `r nrow(count_set_correct_no_na)` peptides with an enrichment ratio that was computed, we have `r count_set_correct_no_na %>% filter(enrichment_ratio < 1) %>% nrow()` that are purged. But only `r count_set_correct_no_na %>% filter(enrichment_ratio < 0.5) %>% nrow()` (`r ((count_set_correct_no_na$enrichment_ratio %>% between(.,0,0.5) %>% mean())*100 )%>% round(.,digit = 2)`%) have seen their frequencies reduced at least twofold.
+
+
 #### Purge
 
 No sequences seems missing or highly repressed. So no strong purge. What could have happened is that some of the ones in the induced set that are missing are actually very strongly purged there compared to the repressed set. If true, I expect them to be purged in the repressed set too.
@@ -174,13 +173,13 @@ No sequences seems missing or highly repressed. So no strong purge. What could h
 ```{r 'Testing the hypothesis that the missing peptides are purged'}
 
 induced_set_peptide_sequence <- count_set_correct %>% #Extract all the peptide sequence in the induced set
-  filter(!grepl("/*", peptide_seq)) %>% 
+  filter(!grepl("\\*", peptide_seq)) %>% 
   filter(induction == "induced") %>%
   select(peptide_seq) %>%
   unique() 
 
 repressed_set_peptide_sequence <- count_set_correct %>% #Extract all the peptide sequence in the repressed set
-  filter(!grepl("/*", peptide_seq)) %>% 
+  filter(!grepl("\\*", peptide_seq)) %>% 
   filter(induction == "repressed") %>%
   select(peptide_seq) %>%
   unique()
@@ -201,7 +200,7 @@ I should expect the enrichment ratio for the same peptide sequence to correlate 
 
 ```{r 'Looking at the correlation of enrichment_ratio'}
 count_set_correct_no_na_no_stops <- count_set_correct_no_na %>% 
-  filter(!grepl("/*", peptide_seq))
+  filter(!grepl("\\*", peptide_seq))
 
 mean_enrichment_ratio_log_repressed <-  count_set_correct_no_na_no_stops %>%
   subset(induction == "repressed", 
