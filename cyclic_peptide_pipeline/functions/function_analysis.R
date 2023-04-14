@@ -37,11 +37,11 @@ create.lib <- function(libSize = 10, pepLength = 4, alphabet = c("XXX","YYY")){
 compute_ratios <- function(df){
   # Get all the colnames and decide new colnames
   col_names <- colnames(df)
-  new_col_names <- paste0(col_names[-c(1,2)],"_ratio")
+  new_col_names <- paste0(col_names[-c(1:3)],"_ratio")
   
   # For all columns apart from the seq and peptide_seq, compute a ratio and add it to the df
   
-  for(name in col_names[-c(1,2)]){
+  for(name in col_names[-c(1:3)]){
     column <- df %>% select(all_of(name))
     new_column <- column/sum(column)
     df <- cbind(df, new_column)
@@ -51,29 +51,15 @@ compute_ratios <- function(df){
   
   # Compute a gen5 over gen1 ratio
   
-  libraries <- colnames(df)[-c(1,2)] %>%
-    gsub(pattern = "_(.)*","" , .) %>% 
-    unique()
+  gen1 <- df %>% select(contains("gen1") & contains("ratio"))
+  gen5 <- df %>% select(contains("gen5") & contains("ratio"))
+  enrichment_ratio <- gen5/gen1
+  colnames(enrichment_ratio) <- "enrichment_ratio"
   
-  for(lib in libraries){
-    col_gen_1 <- df[ , grepl(lib , colnames(df)) & grepl("ratio" , colnames(df)) & grepl("gen1" , colnames(df))]
-    col_gen_5 <- df[ , grepl(lib , colnames(df)) & grepl("ratio" , colnames(df)) & grepl("gen5" , colnames(df))]
+  df <- df %>%
+    cbind(enrichment_ratio) %>% 
+    mutate(enrichment_ratio_log = log2(enrichment_ratio))
     
-    # Compute the ratio
-    col_ratio <- col_gen_5/col_gen_1
-    
-    # Turns infinite ratios into NAs
-    col_ratio <- ifelse(is.infinite(col_ratio), NA, col_ratio)
-    
-    # Add log ratios
-    col_ratio_log <- log2(col_ratio)
-    df <- cbind(df, col_ratio, col_ratio_log)
-    
-    # Rename the last two columns
-    names(df)[ncol(df)-1] <- paste0(lib,"_enrichment_ratio")
-    names(df)[ncol(df)] <- paste0(lib,"_enrichment_ratio_log")
-  }
-  
   return(df)
 }
 
