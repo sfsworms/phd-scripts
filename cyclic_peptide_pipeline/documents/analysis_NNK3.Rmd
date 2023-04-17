@@ -44,7 +44,7 @@ count_set <- count_set %>%
   mutate(enrichment_ratio_log = ifelse(is.infinite(enrichment_ratio_log),NA,enrichment_ratio_log)) 
 ```
 
-## Read quality
+## Read quality check
 
 ### Stop codons
 
@@ -52,15 +52,26 @@ count_set <- count_set %>%
 unique_sequences <- count_set %>% pull(peptide_seq) %>% unique() %>% length()
 sequences_with_stop <- count_set %>% filter(grepl("\\*", peptide_seq)) %>% pull(peptide_seq) %>% unique() %>% length()
 sequences_no_stop <- count_set %>% filter(!grepl("\\*", peptide_seq)) %>% pull(peptide_seq) %>% unique() %>% length()
-percent_with_stop <- ((sequences_with_stop)/unique_sequences
+percent_with_stop <- sequences_with_stop/unique_sequences
 average_reads_with_stop <- ((count_set %>% filter(grepl("\\*", peptide_seq)) %>% select(c("gen1_12","gen5_12")) %>% sum())/sequences_with_stop) %>% round(digits = 2)
 average_reads_no_stop <- ((count_set %>% filter(!grepl("\\*", peptide_seq)) %>% select(c("gen1_12","gen5_12")) %>% sum())/sequences_with_stop) %>% round(digits = 2)
 
 ```
 
-Let's look at the subset of sequences with stops codons. `rsequences_with_stop` sequences (`r percent_with_stop)`% of the total) contains stop codons. Those are mostly low-abundance sequence, with an average of `r count_set %>% filter(grepl("\\*", peptide_seq)) %>% select(c(gen`
+Let's look at the subset of sequences with stops codons. `rsequences_with_stop` sequences (`r percent_with_stop`)% of the total) contains stop codons. Those are mostly low-abundance sequence, with an average of `r average_reads_with_stop`reads per sequence with stop codons but `r average_reads_no_stop`reads per sequence without a stop codon.
 
-I will subtract the sequences that do not start with the correct codon (*TGC*).
+
+```{r `subsetting`}
+
+
+count_set <- count_set%>%
+    filter(grepl("^TGC.*", seq))
+
+good_seq <- count_set %>% pull(peptide_seq) %>% unique() %>% length()
+```
+
+I subtract the sequences that do not start with the correct codon (*TGC*) and work only with those for the reast of this document. That is I keep `r good_seq` sequences out of `r unique_sequences`. 
+.
 
 ## Enrichment ratio
 
