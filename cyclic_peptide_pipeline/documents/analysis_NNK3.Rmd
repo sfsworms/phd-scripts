@@ -51,130 +51,146 @@ count_set <- count_set %>%
 ```{r}
 unique_sequences <- count_set %>% pull(peptide_seq) %>% unique() %>% length()
 sequences_with_stop <- count_set %>% filter(grepl("\\*", peptide_seq)) %>% pull(peptide_seq) %>% unique() %>% length()
-sequences_no_stop <- count_set %>% filter(!grepl("\\*", peptide_seq)) %>% pull(peptide_seq) %>% unique() %>% length()
 percent_with_stop <- sequences_with_stop/unique_sequences
-average_reads_with_stop <- ((count_set %>% filter(grepl("\\*", peptide_seq)) %>% select(c("gen1_12","gen5_12")) %>% sum())/sequences_with_stop) %>% round(digits = 2)
-average_reads_no_stop <- ((count_set %>% filter(!grepl("\\*", peptide_seq)) %>% select(c("gen1_12","gen5_12")) %>% sum())/sequences_with_stop) %>% round(digits = 2)
 
 ```
 
-Let's look at the subset of sequences with stops codons. `rsequences_with_stop` sequences (`r percent_with_stop`)% of the total) contains stop codons. Those are mostly low-abundance sequence, with an average of `r average_reads_with_stop`reads per sequence with stop codons but `r average_reads_no_stop`reads per sequence without a stop codon.
+Let's look at the subset of sequences with stops codons. `r sequences_with_stop` sequences (`r percent_with_stop`)% of the total) contains stop codons. A lot of those are lower quality, not starting with TGC.
 
+### Reads not starting with TGC
 
 ```{r `subsetting`}
-
-
-count_set <- count_set%>%
+count_set_good <- count_set %>%
     filter(grepl("^TGC.*", seq))
 
-good_seq <- count_set %>% pull(peptide_seq) %>% unique() %>% length()
+unique_sequences_good <- count_set_good %>% pull(peptide_seq) %>% unique() %>% length()
+coverage <- (unique_sequences_good/21^3*100) %>% round(digits = 2)
+
+average_good_reads <- count_set_good %>% select(c("gen1_12", "gen5_12")) %>% rowSums() %>% mean() %>% round(digits = 0)
+average_bad_reads <- count_set %>% filter(!grepl("^TGC.*", seq)) %>% select(c("gen1_12", "gen5_12")) %>% rowSums() %>% mean() %>% round(digits = 0)
+
+rm(count_set)
 ```
 
-I subtract the sequences that do not start with the correct codon (*TGC*) and work only with those for the reast of this document. That is I keep `r good_seq` sequences out of `r unique_sequences`. 
-.
+I subtract the sequences that do not start with the correct codon (*TGC*) and work only with those for the rest of this document. Out of `r unique_sequences`, this leaves me `r unique_sequences_good`. 
 
-## Enrichment ratio
-
-Let's have a look at the distribution of enrichment ratio, having dropped all the enrichment ratios that were infinite, or zeroes (so not present in one of the two generation). Overall it looks like a pretty symetrical set.
+The sequences not starting with TGC are mostly lower quality reads. The average number of reads (over all library and generation) per sequence is `r average_good_reads` for the sequences starting with TGC, but just `r average_bad_reads` for those not starting with TGC. 
 
 ```{r}
-tapply(count_set %>% filter(enrichment_ratio > 0) %>% pull(enrichment_ratio), 
-       count_set %>% filter(enrichment_ratio > 0) %>% pull(induction), 
-       summary)
-
-na_percent_induced <- count_set%>% 
-  filter(induction == "induced") %>%
-  select(enrichment_ratio) %>% 
-  is.na() %>% 
-  mean() %>%
-  round(digits = 2)
-
-na_percent_repressed <- count_set%>% 
-  filter(induction == "repressed") %>%
-  select(enrichment_ratio) %>% 
-  is.na() %>% 
-  mean() %>%
-  round(digits = 2)
+count_set <- count_set_good
+rm(count_set_good)
 ```
-
-```{r 'histogram enrichment'}
-p <- ggplot(count_set, aes(x = enrichment_ratio_log)) +
-  geom_histogram(color = "black", fill = "white") +
-  labs(title = "Histogram of log(Enrichment Ratio", x = "Log(Enrichment Ratio)", y = "Count") +
-  facet_grid(library~induction)
-
-p
-
-```
-Note that we're still looking at sequences, the higher numbers for nnb is due to higher number of low quality sequences.
-
-
-
-```{r 'correct TGC', echo=FALSE}
-count_set_correct <- count_set%>%
-    filter(grepl("^TGC.*", seq))
-
-count_set_stops_correct <- count_set_correct %>%
-  filter(grepl("\\*", peptide_seq))
-
-count_set_correct_no_stops <- count_set_correct %>%
-  filter(!grepl("\\*", peptide_seq))
-
-count_set_correct_no_na <- na.omit(count_set_correct)
-```
-
-This is a surprisingly large number: `r nrow(count_set)-nrow(count_set_correct)` out of `r nrow(count_set)` (`r 100-((nrow(count_set_correct)/nrow(count_set)*100)%>% round(digit = 2))`%). Although that's the number of sequences, not the number or reads. We have `r count_set_correct %>% select(c("gen1_12","gen5_12")) %>% sum()` correct reads out of `r count_set %>% select(c("gen1_12","gen5_12")) %>% sum()` (`r ((count_set_correct %>% select(c("gen1_12","gen5_12")) %>% sum())/(count_set %>% select(c("gen1_12","gen5_12")) %>% sum()) *100) %>% round(digit = 2)`%), almost all of them.
-
-So looking at only the sequences starting with TGC, we have `r (nrow(count_set_stops_correct)/nrow(count_set_correct)*100) %>% round(digits = 2)`% of stop codons, much closer to the expected `r ((1-(31/32)^3)*100) %>% round(digits = 2)`%. We'll subset only the correct ones for downstream analysis and work with the count_set_correct data set.
 
 
 ### Coverage
 
 ```{r 'checking coverage'}
-number_peptide_repressed <- count_set_correct %>%
-  filter(!grepl("\\*", peptide_seq)) %>%
-  filter(induction == "repressed") %>%
-  select(peptide_seq) %>%
-  unique() %>%
-  nrow()
+dna_unique <- count_set %>% pull("seq") %>% unique() %>% length()
 
-number_peptide_induced <- count_set_correct %>%
-  filter(!grepl("\\*", peptide_seq)) %>%
-  filter(induction == "induced") %>%
-  select(peptide_seq) %>%
-  unique() %>%
-  nrow()
-
-number_peptide_induced_no_na <- count_set_correct %>%
-  na.omit() %>%
-  filter(!grepl("\\*", peptide_seq)) %>%
-  filter(induction == "induced") %>%
-  select(peptide_seq) %>%
-  unique() %>%
-  nrow()
-
-number_peptide_repressed_no_na <- count_set_correct %>%
-  na.omit() %>%
-  filter(!grepl("\\*", peptide_seq)) %>%
-  filter(induction == "repressed") %>%
-  select(peptide_seq) %>%
-  unique() %>%
-  nrow()
 ```
 
-With count_set peptides, we expect to have 20\^3 or `r 20^3` different possible peptide sequences (not counting cyclisation). In my case, I have `r number_peptide_repressed` peptides in the repressed condition and `r number_peptide_induced` in the induced condition, so almost perfect to perfect coverage. Those numbers are `r number_peptide_repressed_no_na` and `r number_peptide_induced_no_na` if one removes NAs.
+I can expect at most `r 21^3` different peptide sequences (counting stops), so my coverage is `r coverage`%. Pretty good. At the DNA level, I expect `r 32^3` unique sequences with NNK codons and I have `r dna_unique`. This is presumably because I have low-quality sequence where the third base of my codons isn't a G or T. I will filter those too. 
+
+```{r 'filtering NNK'}
+sequences_after_nnk_filtering <- count_set %>% 
+  filter(grepl("^TGC([ATGC][ATGC][GT]){3}$", seq)) %>% 
+  pull(seq) %>% 
+  unique() %>% 
+  length()
+
+sequences_filtered_by_nnk_filtering <- dna_unique - sequences_after_nnk_filtering
+ 
+average_reads_after_nnk_filtering <- count_set %>% filter(grepl("^TGC([ATGC][ATGC][GT]){3}$", seq)) %>%  select(c("gen1_12", "gen5_12")) %>% rowSums() %>% mean() %>% round(digits = 0)
+
+average_reads_nnk_filtered_seq <- count_set %>% filter(!grepl("^TGC([ATGC][ATGC][GT]){3}$", seq)) %>%  select(c("gen1_12", "gen5_12")) %>% rowSums() %>% mean() %>% round(digits = 0)
+
+coverage_after_nnk_filtering <- ((sequences_after_nnk_filtering/(32^3))*100) %>% round(digits = 2)
+
+count_set <- count_set %>%
+    filter(grepl("^TGC([ATGC][ATGC][GT]){3}$", seq))
+
+```
+
+This filtering step removes `r sequences_filtered_by_nnk_filtering` sequences with an average of `r average_reads_nnk_filtered_seq` reads each. `r sequences_after_nnk_filtering` sequences remains with an average of `r average_reads_after_nnk_filtering` each. This is `r coverage_after_nnk_filtering`% coverage at the DNA level.
+
+### Coverage and abundance in gen 1
+
+I'm going to check specifically the gen 1 coverage and distribution of abundance pre-selection. One concern is that the library was really skewed, and that some sequences were missing or almost missing.
+
+```{r}
+unique_gen1_sequence <- count_set %>%
+  filter(gen1_12 != 0) %>%
+  pull(seq) %>%
+  unique() %>%
+  length()
+```
+
+So `r unique_gen1_sequence` are present in generation 1, that most of them (remember `r sequences_after_nnk_filtering` total sequences.).
+
+```{r}
+p <- ggplot(data = count_set %>% mutate(gen1_12), aes(x = library, y = gen1_12)) +
+  geom_violin() + 
+  labs(x = "Library", y = "Count") +
+  ylim(0,100)
+
+p %>% print() %>% suppressWarnings()
+```
+
+So most have a count in the single or low two digits, but there is a very, very long tail. (Note that the above graph was truncated. The tail goes on to the tens of thousands.)
+
+## Enrichment ratio
+
+Let's have a look at the distribution of enrichment ratio, having dropped all the enrichment ratios that were infinite, or zeroes (so not present in one of the two generation). Overall it looks like a pretty symmetrical set in the NNB library, but there is a lot of heavily purged sequences in the induced section of NNK.
+
+```{r}
+tapply(count_set %>% filter(enrichment_ratio > 0) %>% pull(enrichment_ratio), 
+       count_set %>% filter(enrichment_ratio > 0) %>% mutate(lib_condition = paste(library, induction)) %>% pull(lib_condition), 
+       summary)
+
+```
+
+```{r 'histogram enrichment'}
+p <- ggplot(count_set, aes(x = enrichment_ratio_log)) +
+  geom_histogram(color = "black", fill = "white") +
+  labs(title = "Histogram of log(Enrichment Ratio", x = "Log2(Enrichment Ratio)", y = "Count") +
+  facet_grid(library~induction)
+
+p %>% print() %>% suppressWarnings()
+
+```
+The induced numers for NNK are interesting, why doesn't it repeat for the NNB library? Could it be that those are mixed too? :/
+
+```{r}
+get__dna_sequence_number <- function(df){
+  count <- df 
+    unique() %>%
+    length()
+  return(count)
+}
+
+tapply(count_set, 
+       count_set %>% mutate(lib_condition = paste(library, induction)) %>% select(lib_condition), 
+       get__dna_sequence_number)
+```
+
+
+The very high number could be PCR artifact? If so they shouldn't correlate between generation.
+
+```{r 'Test correlation'}
+ggplot(data = count_set %>% filter(library == "nnb") , aes(x= gen1_12_ratio, y = gen5_12_ratio)) +
+  geom_point() +
+  facet_grid(library~induction)
+```
+
+
 
 ### Purged count_set sequences
 
 ```{r}
 
-count_set_correct %>%
-  filter(enrichment_ratio < 1) %>%
-  select(enrichment_ratio) %>%
-  summary
 ```
 
-Most peptides here are weakly purged. Of the `r nrow(count_set_correct_no_na)` peptides with an enrichment ratio that was computed, we have `r count_set_correct_no_na %>% filter(enrichment_ratio < 1) %>% nrow()` that are purged. But only `r count_set_correct_no_na %>% filter(enrichment_ratio < 0.5) %>% nrow()` (`r ((count_set_correct_no_na$enrichment_ratio %>% between(.,0,0.5) %>% mean())*100 )%>% round(.,digit = 2)`%) have seen their frequencies reduced at least twofold.
+
 
 
 #### Purge
@@ -183,24 +199,6 @@ No sequences seems missing or highly repressed. So no strong purge. What could h
 
 ```{r 'Testing the hypothesis that the missing peptides are purged'}
 
-induced_set_peptide_sequence <- count_set_correct %>% #Extract all the peptide sequence in the induced set
-  filter(!grepl("\\*", peptide_seq)) %>% 
-  filter(induction == "induced") %>%
-  select(peptide_seq) %>%
-  unique() 
-
-repressed_set_peptide_sequence <- count_set_correct %>% #Extract all the peptide sequence in the repressed set
-  filter(!grepl("\\*", peptide_seq)) %>% 
-  filter(induction == "repressed") %>%
-  select(peptide_seq) %>%
-  unique()
-
-absent_peptides <- repressed_set_peptide_sequence %>% filter( !(repressed_set_peptide_sequence$peptide_seq %in% induced_set_peptide_sequence$peptide_seq))
-
-absent_peptides
-
-count_set_absent_peptides <- count_set %>%
-  filter(count_set$peptide_seq %in% absent_peptides$peptide_seq)
 ```
 
 The absent peptides are all containing relatively rare codons, with a lot of phenylalanine, tryptophane, cysteines... That could be the explanation. Looking at the data sets, all eleven peptides are "NAs" in the represed condition too, so relatively rare.
@@ -210,39 +208,13 @@ The absent peptides are all containing relatively rare codons, with a lot of phe
 I should expect the enrichment ratio for the same peptide sequence to correlate pretty well.
 
 ```{r 'Looking at the correlation of enrichment_ratio'}
-count_set_correct_no_na_no_stops <- count_set_correct_no_na %>% 
-  filter(!grepl("\\*", peptide_seq))
-
-mean_enrichment_ratio_log_repressed <-  count_set_correct_no_na_no_stops %>%
-  subset(induction == "repressed", 
-         select=c(peptide_seq, enrichment_ratio_log)) %>%
-  aggregate(enrichment_ratio_log ~ peptide_seq, data=., FUN=mean)
-  
-mean_enrichment_ratio_log_induced <-  count_set_correct_no_na_no_stops %>%
-  subset(induction == "induced", 
-         select=c(peptide_seq, enrichment_ratio_log)) %>%
-  aggregate(enrichment_ratio_log ~ peptide_seq, data=., FUN=mean)
- 
-mean_enrichment_ratio_log <- inner_join(mean_enrichment_ratio_log_repressed, mean_enrichment_ratio_log_induced, by = "peptide_seq")
-
-colnames(mean_enrichment_ratio_log) <- c("peptide_seq", "enrichment_ratio_repressed", "enrichment_ratio_induced")
-
-correlation <- cor(mean_enrichment_ratio_log$enrichment_ratio_repressed, mean_enrichment_ratio_log$enrichment_ratio_induced)
-
-p <- ggplot(mean_enrichment_ratio_log %>% filter(enrichment_ratio_repressed > -1.5), aes(x = enrichment_ratio_induced, y = enrichment_ratio_repressed)) +
-  geom_point(alpha = 0.1) +
-  xlab("Log2(Enrichment ratio) in the induced condition") +
-  ylab("Log2(Enrichment ratio) in the repressed condition") +
-  geom_abline(slope = 1, intercept =0)
-
-p
 
 ```
 
-There is fairly good correlation (`r correlation %>% round(digit = 2)`) between the induced and repressed condition. The plot isn't fully symmetrical which I don't fully understand.
+There is fairly good correlation (r correlation %>% round(digit = 2)) between the induced and repressed condition. The plot isn't fully symmetrical which I don't fully understand.
 
 ```{r, include=TRUE}
-p
+
 ```
 
 ### 'RR' motifs
@@ -250,22 +222,22 @@ p
 RR motifs are known to interfere with the membrane. Let look at the peptides with those motifs.
 
 ```{r}
-count_set_RR <- count_set_correct_no_stops %>% 
+count_set_RR <- count_set %>% 
       filter(grepl("RR", peptide_seq))
 
 tapply(count_set$enrichment_ratio, count_set$induction, summary)
 
 # Color the points with RR motifs
 
-mean_enrichment_ratio_log$RR <- mean_enrichment_ratio_log$peptide_seq %>% grepl("RR", .) %>% ifelse(., "RR", "not RR")
+# mean_enrichment_ratio_log$RR <- mean_enrichment_ratio_log$peptide_seq %>% grepl("RR", .) %>% ifelse(., "RR", "not RR")
+# 
+# p <- ggplot(mean_enrichment_ratio_log, aes(x = enrichment_ratio_induced, y = enrichment_ratio_repressed, color = RR)) +
+#   geom_point(alpha = 0.5, size = 1) +
+#   facet_grid(RR ~ .) +
+#   xlab("Log2(Enrichment ratio) in the induced condition") +
+#   ylab("Log2(Enrichment ratio) in the repressed condition")
 
-p <- ggplot(mean_enrichment_ratio_log, aes(x = enrichment_ratio_induced, y = enrichment_ratio_repressed, color = RR)) +
-  geom_point(alpha = 0.5, size = 1) +
-  facet_grid(RR ~ .) +
-  xlab("Log2(Enrichment ratio) in the induced condition") +
-  ylab("Log2(Enrichment ratio) in the repressed condition")
 
-p
 ```
 
 ### Enrichment by charge
