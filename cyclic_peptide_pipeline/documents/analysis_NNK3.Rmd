@@ -161,28 +161,29 @@ p %>% print() %>% suppressWarnings()
 The induced numers for NNK are interesting, why doesn't it repeat for the NNB library? Could it be that those are mixed too? :/
 
 ```{r}
-get__dna_sequence_number <- function(df){
-  count <- df 
+get_sequence_number <- function(df){
+  count <- df %>%
     unique() %>%
     length()
   return(count)
 }
 
-tapply(count_set, 
-       count_set %>% mutate(lib_condition = paste(library, induction)) %>% select(lib_condition), 
-       get__dna_sequence_number)
+tapply(count_set %>% pull(seq), 
+       count_set %>% mutate(lib_condition = paste(library, induction)) %>% pull(lib_condition), 
+       get_sequence_number) %>% as.matrix() %>% kable()
 ```
 
+The NNB libraries are larger than the NNK who only have around 2/3 of total coverage.
 
 The very high number could be PCR artifact? If so they shouldn't correlate between generation.
 
 ```{r 'Test correlation'}
-ggplot(data = count_set %>% filter(library == "nnb") , aes(x= gen1_12_ratio, y = gen5_12_ratio)) +
+ggplot(data = count_set, aes(x= gen1_12, y = gen5_12)) +
   geom_point() +
   facet_grid(library~induction)
 ```
 
-
+Okay, this looks decent. I'm started to believe those numbers. A bit worried at the small number of sequences in the NNK set.
 
 ### Purged count_set sequences
 
