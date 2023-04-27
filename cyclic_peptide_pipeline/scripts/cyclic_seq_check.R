@@ -9,12 +9,12 @@ sorted_AA <- c(sort(AA_STANDARD),"*")
 
 standard_sequence <- function(aa_seq = "CABCDC"){
   # If there is one C, return its sequence
-  if(str_count(aa_seq,"C") == 1) return(aa_seq)
+  #if(str_count(aa_seq,"C") == 1) return(aa_seq)
   
   # If there isn't a C, this is a mistake
-  if(str_count(aa_seq,"C") == 0) return(NA)
+  #if(str_count(aa_seq,"C") == 0) return(NA)
   
-  else{
+
   # Get the positions of all the Cs
     positions <- str_locate_all(aa_seq,"C")[[1]][,1] 
     possible_sequence <- vector()
@@ -27,13 +27,18 @@ standard_sequence <- function(aa_seq = "CABCDC"){
 
     }
   possible_sequence %>% max() %>% return()
-  }
+  
 }
 
 # Let's add that to my short peptide merged set.
 
 short_pep_set <- read.csv2(file.choose())
 
-short_pep_set_test <- short_pep_set %>%
+short_pep_set_test <- short_pep_set  %>%
+  filter(grepl("^TGC([ATGC][ATGC][GT]){3}$", seq)) %>%
   mutate(std_seq = standard_sequence(peptide_seq))
 
+test_function <- function(x){
+  print(class(x))
+  return(class(x))
+}
