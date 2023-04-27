@@ -109,3 +109,38 @@ remove_stop_codons <- function(peptide_data_frame){
   output_df <- peptide_data_frame[!grepl("\\*", peptide_data_frame$peptide_seq),]
   return(output_df)
 }
+
+
+standard_sequence2 <- function(aa_seq) {
+  
+  # Calculate the number of C's in each sequence
+  num_c <- str_count(aa_seq, "C")
+  
+  # Find sequences with only one C
+  single_c_idx <- num_c == 1
+  single_c_seq <- aa_seq[single_c_idx]
+  
+  # Find sequences with more than one C
+  multi_c_idx <- num_c > 1
+  multi_c_seq <- aa_seq[multi_c_idx]
+  
+  # Extract positions of C's in multi-C sequences
+  multi_c_pos <- str_locate_all(multi_c_seq, "C")
+  
+  max_seq <- vector()
+  # Generate all possible sequences for multi-C sequences and select the best
+  for(j in seq_along(multi_c_pos)){
+    max_seq[j] <- sapply(multi_c_pos[[j]][,1], function(i) {
+      paste0(substring(multi_c_seq[j], i, nchar(multi_c_seq[j])),
+             substring(multi_c_seq[j], 1, i-1)) 
+    }) %>% max()
+    if(j %% 1000 ==0){print(paste0("Treated sequences: ",j))}
+  }
+  
+  # Combine the sequences with one C and the chosen sequences for multi-C sequences
+  standard_seq <- rep(NA, length(aa_seq))
+  standard_seq[single_c_idx] <- single_c_seq
+  standard_seq[multi_c_idx] <- max_seq
+  
+  return(standard_seq)
+}

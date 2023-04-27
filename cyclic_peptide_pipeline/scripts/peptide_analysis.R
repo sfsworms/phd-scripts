@@ -34,16 +34,15 @@ run_names_long <- run_names[grepl("24", run_names)]
 file_list_short <- file_list[grepl("12", file_list)]
 file_list_long <- file_list[grepl("24", file_list)]
 
-# Import the sets
+# Import the short set
 merged_set_short <- create_count_set(directory, file_list_short, run_names_short)
-merged_set_long <- create_count_set(directory, file_list_long, run_names_long)
+
 
 # Pivot them to a longer format with a library column
 merged_set_short <- merged_set_short %>% 
   pivot_longer(cols = c(3:8),names_to = "run_name", values_to = "count") %>%
   separate_wider_regex(cols = "run_name", c(library = ".*?", "_", experiment = ".*")) %>%
   pivot_wider(id_cols = c("seq", "peptide_seq", "library"), names_from = "experiment", values_from = "count")
-
 
 # Save the merged set
 write.csv2(merged_set_short, file = file.path(directory,"merged_set_short.csv"), row.names = FALSE)
@@ -91,7 +90,7 @@ write.csv2(induced_set_short,
 write.csv2(repressed_set_short, file = file.path(dirname(directory), paste("repressed_set", peptide_types, ".csv",
                                                                            sep = "")),row.names = FALSE)
 
-## Make a merged long set and write it
+## Make a merged set and write it
 
 count_set <- rbind(induced_set_short %>% 
                      mutate(induction = "induced"),
@@ -103,14 +102,21 @@ count_set <- rbind(induced_set_short %>%
 
 count_set <- count_set[sample(nrow(count_set)), ]
 
+## Add a 'standard seq' column to take into account the cyclisation
+
+count_set <- count_set %>%
+  mutate(standard_seq = standard_sequence(peptide_seq), .after = peptide_seq)
+
+
+## Write the set
 write.csv2(count_set, 
-           file = file.path(dirname(directory), paste("count_set_", peptide_types, ".csv",
+           file = file.path(dirname(directory), paste("count_set_std", peptide_types, ".csv",
                                                       sep = "")),
            row.names = FALSE)
 
 # Now the same for the long file
+merged_set_long <- create_count_set(directory, file_list_long, run_names_long)
 
-merged_set_long <- read.csv2(file.path(directory,"merged_set_long.csv"))
 
 # Pivot to a longer format with libraries
 merged_set_long <- merged_set_long %>% 
@@ -167,7 +173,13 @@ count_set <- rbind(induced_set_long %>%
 
 count_set <- count_set[sample(nrow(count_set)), ]
 
-write.csv2(count_set, 
-           file = file.path(dirname(directory), paste("count_set_", peptide_types, ".csv",
+count_set_long <- read.csv2(file = "C:/Users/worms/ngs_data/2022_06_07_drift_seq/90-666155004b/00_fastq/all_files/count_set_long.csv")
+
+#Add the standard sequence
+count_set_long <- count_set_long %>%
+  mutate(standard_seq = standard_sequence2(peptide_seq), .after = peptide_seq)
+
+write.csv2(count_set_long, 
+           file = file.path(dirname(directory), paste("count_set_std2", peptide_types, ".csv",
                                                       sep = "")),
            row.names = FALSE)
