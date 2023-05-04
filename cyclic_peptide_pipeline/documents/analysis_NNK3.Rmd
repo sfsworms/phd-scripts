@@ -35,7 +35,7 @@ This is the analysis of the peptides from the drift experiment. The required dat
 ```{r 'load datasets', echo=FALSE}
 directory <- "C:/Users/worms/ngs_data/2022_06_07_drift_seq/90-666155004b/00_fastq/all_files"
 
-count_set <- read.csv2(file = file.path(directory, "count_set_short.csv"),
+count_set <- read.csv2(file = file.path(directory, "count_set_short_std.csv"),
                   nrow = n_reads) 
 
 # Going to drop all the infinite enrichment ratio to NA
@@ -64,7 +64,7 @@ count_set_good <- count_set %>%
     filter(grepl("^TGC.*", seq))
 
 unique_sequences_good <- count_set_good %>% pull(peptide_seq) %>% unique() %>% length()
-coverage <- (unique_sequences_good/21^3*100) %>% round(digits = 2)
+
 
 average_good_reads <- count_set_good %>% select(c("gen1_12", "gen5_12")) %>% rowSums() %>% mean() %>% round(digits = 0)
 average_bad_reads <- count_set %>% filter(!grepl("^TGC.*", seq)) %>% select(c("gen1_12", "gen5_12")) %>% rowSums() %>% mean() %>% round(digits = 0)
@@ -86,7 +86,7 @@ rm(count_set_good)
 
 ```{r 'checking coverage'}
 dna_unique <- count_set %>% pull("seq") %>% unique() %>% length()
-
+coverage <- (unique_sequences_good/21^3*100) %>% round(digits = 2)
 ```
 
 I can expect at most `r 21^3` different peptide sequences (counting stops), so my coverage is `r coverage`%. Pretty good. At the DNA level, I expect `r 32^3` unique sequences with NNK codons and I have `r dna_unique`. This is presumably because I have low-quality sequence where the third base of my codons isn't a G or T. I will filter those too. 
@@ -102,6 +102,8 @@ sequences_filtered_by_nnk_filtering <- dna_unique - sequences_after_nnk_filterin
  
 average_reads_after_nnk_filtering <- count_set %>% filter(grepl("^TGC([ATGC][ATGC][GT]){3}$", seq)) %>%  select(c("gen1_12", "gen5_12")) %>% rowSums() %>% mean() %>% round(digits = 0)
 
+median_reads_after_nnk_filtering <- count_set %>% filter(grepl("^TGC([ATGC][ATGC][GT]){3}$", seq)) %>%  select(c("gen1_12", "gen5_12")) %>% rowSums() %>% median() %>% round(digits = 0)
+
 average_reads_nnk_filtered_seq <- count_set %>% filter(!grepl("^TGC([ATGC][ATGC][GT]){3}$", seq)) %>%  select(c("gen1_12", "gen5_12")) %>% rowSums() %>% mean() %>% round(digits = 0)
 
 coverage_after_nnk_filtering <- ((sequences_after_nnk_filtering/(32^3))*100) %>% round(digits = 2)
@@ -111,7 +113,7 @@ count_set <- count_set %>%
 
 ```
 
-This filtering step removes `r sequences_filtered_by_nnk_filtering` sequences with an average of `r average_reads_nnk_filtered_seq` reads each. `r sequences_after_nnk_filtering` sequences remains with an average of `r average_reads_after_nnk_filtering` each. This is `r coverage_after_nnk_filtering`% coverage at the DNA level.
+This filtering step removes `r sequences_filtered_by_nnk_filtering` sequences with an average of `r average_reads_nnk_filtered_seq` reads each. `r sequences_after_nnk_filtering` sequences remains with an average of `r average_reads_after_nnk_filtering` each.(But only a median of `count_set %>% filter(grepl("^TGC([ATGC][ATGC][GT]){3}$", seq)) %>%  select(c("gen1_12", "gen5_12")) %>% rowSums() %>% mean() %>% round(digits = 0)`) This is `r coverage_after_nnk_filtering`% coverage at the DNA level.
 
 ### Coverage and abundance in gen 1
 
@@ -170,7 +172,7 @@ get_sequence_number <- function(df){
 
 tapply(count_set %>% pull(seq), 
        count_set %>% mutate(lib_condition = paste(library, induction)) %>% pull(lib_condition), 
-       get_sequence_number) %>% as.matrix() %>% kable()
+       get_sequence_number) %>% as.matrix() %>% knitr::kable()
 ```
 
 The NNB libraries are larger than the NNK who only have around 2/3 of total coverage.
@@ -185,24 +187,34 @@ ggplot(data = count_set, aes(x= gen1_12, y = gen5_12)) +
 
 Okay, this looks decent. I'm started to believe those numbers. A bit worried at the small number of sequences in the NNK set.
 
-### Purged count_set sequences
+### Purge
 
-```{r}
-
-```
-
-
-
-
-#### Purge
-
-No sequences seems missing or highly repressed. So no strong purge. What could have happened is that some of the ones in the induced set that are missing are actually very strongly purged there compared to the repressed set. If true, I expect them to be purged in the repressed set too.
+I want to have a look at strongly purged peptides, that disappears entirely over time and as such have enrichment ratio of zero.
 
 ```{r 'Testing the hypothesis that the missing peptides are purged'}
+number_of_purged_peptide_nnk <- count_set %>%
+  filter(library == "nnk") %>%
+  filter(enrichment_ratio == 0)  %>% 
+  pull(induction) %>% 
+  as.factor() %>%
+  summary()
 
+number_of_sequence_peptide_nnk <- count_set %>%
+  filter(library == "nnk") %>%
+  pull(induction) %>% 
+  as.factor() %>%
+  summary()
+
+percentages_of_purged_nnk <- ((number_of_purged_peptide_nnk/number_of_sequence_peptide_nnk)*100) %>%
+  round(digits = 2)
 ```
 
-The absent peptides are all containing relatively rare codons, with a lot of phenylalanine, tryptophane, cysteines... That could be the explanation. Looking at the data sets, all eleven peptides are "NAs" in the represed condition too, so relatively rare.
+So the numbers of sequences that are completely purged in the NNK library in induction conditions are `r number_of_purged_peptide_nnk[1]` (`r percentages_of_purged_nnk[1]`% of sequences) and `r number_of_purged_peptide_nnk[2]` (`r percentages_of_purged_nnk[2]`% of sequences) in repression conditions. That's... coherent. 
+
+```{r 'Toying with the repressed sequences'}
+count_set
+```
+
 
 ### Correlation of Enrichment ratios
 
