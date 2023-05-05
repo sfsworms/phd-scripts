@@ -1,0 +1,290 @@
+---
+title: "Correlation of enrichment ratios"
+date: "2023-05-05"
+output:
+  html_document:
+    toc: true # table of content true
+    toc_depth: 3  # upto three depths of headings (specified by #, ## and ###)
+    number_sections: true  ## if you want number sections at each table header
+    theme: united  # many options for theme, this one is my favorite.
+    highlight: tango  # specifies the syntax highlighting style
+    df_print: paged
+  html_notebook: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, comment = '')
+
+library(tidyverse)
+library(ggplot2)
+library(knitr) # For nice tables
+library(ggExtra)
+
+#Load some custom functions
+source("../functions/function_analysis.R")
+
+
+```
+
+```{r 'data_loading', include = FALSE}
+directory <- "C:/Users/worms/ngs_data/2022_06_07_drift_seq/90-666155004b/00_fastq/all_files"
+
+count_set_long <- read.csv2(file = file.path(directory, "count_set_long_std.csv")) 
+count_set_short <- read.csv2(file = file.path(directory, "count_set_short_std.csv"))
+
+# Going to drop all the infinite enrichment ratios to NAs
+
+count_set_short <- count_set_short %>%
+  mutate(enrichment_ratio = ifelse(is.infinite(enrichment_ratio),NA,enrichment_ratio)) %>%
+  mutate(enrichment_ratio_log = ifelse(is.infinite(enrichment_ratio_log),NA,enrichment_ratio_log)) 
+
+count_set_long <- count_set_long %>%
+  mutate(enrichment_ratio = ifelse(is.infinite(enrichment_ratio),NA,enrichment_ratio)) %>%
+  mutate(enrichment_ratio_log = ifelse(is.infinite(enrichment_ratio_log),NA,enrichment_ratio_log)) 
+
+# Only keeping sequences that fit the TCG(NNK)3 or TCG(NNK)7 pattern
+
+count_set_short <- count_set_short %>% 
+  filter(grepl("^TGC([ATGC][ATGC][GT]){3}$", seq)) 
+
+count_set_long <- count_set_long %>% 
+  filter(grepl("^TGC([ATGC][ATGC][GT]){7}$", seq)) 
+```
+
+# Introduction
+
+In this project we want to use change in the relative abundance of genes as a proxy for fitness. The change of abundance is characterized using the enrichment ratio: the proportions of all reads with a given sequence after a given number of generation divided by the initial proportion. For ease of comparison, we work with the log2 of the enrichment ratio: genes becoming more common have a enrichment ratio > 0, genes being depleted have a negative enrichment ratio.
+
+If change in relative abundance of genes (as seen in the enrichment ratio) are due to the effect of the encoded peptides on fitness, there should be a positive correlation between the enrichment ratios of genes encoding for the same peptides. A given peptide may be encoded by multiple genes for two reasons: because of the degeneracy of the codons used or because of the circularity of the peptides. (For exemple, CDCL and CLCD are the same peptides after splicing.)
+
+This note aims to test that.
+
+## Correlation coefficient
+
+For each case (unique combination of peptide length, repetition and induction condition) we're going to compute the correlation coefficient of all the enrichment ratio in a pairwise fashion. That is, if we have four sequences *A*, *B*, *C* and *D* encoding for the same peptide, we'll add all six possible pairs to the list of enrichment ratio pairs to test as in the table below.
+
+```{r 'combinatorial exemple'}
+combn(c("A","B","C","D"), m = 2) %>% 
+  t() %>%
+  kable(format = "simple", col.names = c("Seq1","Seq2"), caption = "All possible pairs from 4 sequences A, B, C and D.")
+```
+
+The correlation coefficients are discussed for the short and long peptides separately.
+
+## Short peptides
+
+```{r 'get_coefficient'}
+libraries = c("nnb","nnk")
+conditions = c("induced","repressed")
+
+results_short = data.frame(case = character(),
+                     coefficient = numeric())
+
+results_long = data.frame(case = character(),
+                     coefficient = numeric())
+
+for(i in libraries){
+  for(j in conditions){
+    name <- paste0(i,"_",j)
+    
+    ratio_list <- count_set_short %>% 
+      filter(library == i) %>%
+      filter(induction == j) %>%
+      get_enrichment_list()
+    colnames(ratio_list) <- c("a", "b")
+    
+    coeff <- cor(ratio_list$a, ratio_list$b)
+    
+    new_line <- data.frame(case = name,
+                           coefficient = coeff)
+    results_short <- rbind(results_short, new_line)
+  }
+}
+
+for(i in libraries){
+  for(j in conditions){
+    name <- paste0(i,"_",j)
+    
+    ratio_list <- count_set_long %>% 
+      filter(library == i) %>%
+      filter(induction == j) %>%
+      get_enrichment_list()
+    colnames(ratio_list) <- c("a", "b")
+    
+    coeff <- cor(ratio_list$a, ratio_list$b)
+    
+    new_line <- data.frame(case = name,
+                           coefficient = coeff)
+    results_long <- rbind(results_long, new_line)
+  }
+}
+```
+
+For the short peptides (seen below) there is no correlation at all between enrichment ratio, as seen in the table below: all correlation coefficients are < 0.01.
+
+```{r 'short peptide table'}
+kable(results_short %>%
+        mutate(case = gsub(pattern = "_", replacement = "/", x = case)), caption = "Correlation coefficient of the log2(enrichment ratio) for the short peptides.")
+```
+
+Graphing this, it can be seen that the trendlines are indeed flat. 
+
+```{r 'graph short library', message = FALSE}
+data_frame_short <- data.frame(coef1 = numeric(),
+                               coef2 = numeric(),
+                               library = character(),
+                               condition = character())
+
+for(i in libraries){
+  for(j in conditions){
+    df <- count_set_short %>%
+      filter(library == i) %>%
+      filter(induction == j) %>%
+      get_enrichment_list() %>%
+      data.frame()
+    
+    colnames(df) <- c("coef1","coef2")
+    
+    df <- df %>%
+      mutate(library = i) %>%
+      mutate(condition = j)
+    
+    data_frame_short <- rbind(data_frame_short, df)
+  }
+}
+
+p <- ggplot(data = data_frame_short, aes(x = coef1, y = coef2)) +
+  geom_point(alpha = 0.05) +
+  stat_smooth(method=lm) +
+  facet_grid(library ~ condition) 
+
+p %>%
+  print() %>%
+  suppressWarnings() 
+
+```
+
+## Long peptides
+
+For the long peptides, the pattern is very similar, with one exception: the induced, NNK library has something closer to what we'd expect with a coefficient of 0,65.
+
+```{r 'long peptide table'}
+kable(results_long %>%
+        mutate(case = gsub(pattern = "_", replacement = "/", x = case)), caption = "Correlation coefficient of the log2(enrichment ratio) for the long peptides.") 
+```
+
+The graph shows a neat trendline (although not quite the 45° we'd expect)
+
+```{r 'graph long', message = FALSE}
+data_frame_long <- data.frame(coef1 = numeric(),
+                               coef2 = numeric(),
+                               library = character(),
+                               condition = character())
+
+for(i in libraries){
+  for(j in conditions){
+    df <- count_set_long %>%
+      filter(library == i) %>%
+      filter(induction == j) %>%
+      get_enrichment_list() %>%
+      data.frame()
+    
+    colnames(df) <- c("coef1","coef2")
+    
+    df <- df %>%
+      mutate(library = i) %>%
+      mutate(condition = j)
+    
+    data_frame_long <- rbind(data_frame_long, df)
+  }
+}
+
+p_long <- ggplot(data = data_frame_long, aes(x = coef1, y = coef2)) +
+  geom_point(alpha = 0.05) +
+  stat_smooth(method=lm) +
+  facet_grid(library ~ condition) 
+  
+
+p_long %>% 
+  print() %>% 
+  suppressWarnings()
+
+# p_long_nnk_repressed <- ggplot(data = data_frame_long %>% 
+#                                  filter(library == "nnk", condition == "repressed"), aes(x = coef1, y = coef2)) +
+#   geom_point(alpha = 0.05) +
+#   stat_smooth(method=lm) 
+# 
+# ggMarginal(p_long_nnk_repressed)
+# 
+# p_long_nnk_induced <- ggplot(data = data_frame_long %>% 
+#                                  filter(library == "nnk", condition == "induced"), aes(x = coef1, y = coef2)) +
+#   geom_point(alpha = 0.05) +
+#   stat_smooth(method=lm) 
+# 
+# ggMarginal(p_long_nnk_induced)
+
+```
+
+### Number of multiple reads
+
+One explanation might just be the number of pairs for the regression varying between conditions. There are vastly less peptides encoded by multiple genes in the NNK section with non "NA" enrichment ratio despite a similar number of overall reads. This might be due to the large number of entirely purged peptides. This would also explain the skew, with the correlation graph showing highly enriched peptides with ratios >8 for NNK induced, but not for NNB.
+
+
+```{r 'get read numbers'}
+
+read_num_short = data.frame(case = character(),
+                     count = numeric())
+
+read_num_long = data.frame(case = character(),
+                     count = numeric())
+
+for(i in libraries){
+  for(j in conditions){
+    name <- paste0(i,"_",j)
+    
+    count <- count_set_short %>%
+      filter(library == i) %>%
+      filter(induction == j) %>%
+      filter(!is.na(enrichment_ratio_log)) %>%
+      split(., .$standard_seq) %>%
+      Filter(function(x) nrow(x) >1, .) %>% 
+      length()
+    
+    new_line <- data.frame(case = name,
+                           count = count)
+    read_num_short <- rbind(read_num_short, new_line)
+  }
+}
+
+for(i in libraries){
+  for(j in conditions){
+    name <- paste0(i,"_",j)
+    
+    count<- count_set_long %>%
+            filter(library == i) %>%
+      filter(induction == j) %>%
+    filter(!is.na(enrichment_ratio_log)) %>%
+    split(., .$standard_seq) %>%
+    Filter(function(x) nrow(x) >1, .) %>% length()
+    
+    new_line <- data.frame(case = name,
+                           count = count)
+    read_num_long <- rbind(read_num_long, new_line)
+  }
+}
+
+kable(read_num_long %>%
+        mutate(case = gsub(pattern = "_", replacement = "/", x = case)), caption = "Number of peptide sequence with multiple encoding genes for the long peptides.") %>%
+  kable_styling(latex_options = "striped") 
+```
+
+# Conclusion
+
+The NNB library as well as the shorter library don't show a clear correlation between synonymous sequence. That would hints that the ratios seen there are essentially random, with no fitness effect due to the peptide. This could be explained by poor splicing of the libraries. For the NNK7 library, under conditions of repression we see a similar pattern.
+
+One things to be noted is that the while the range of enrichment ratio in those null condition is wide, the distribution still center on low absolute value, with the values for log(enrichment ratio) following a normal distribution with a standard deviation of ~1.5.
+
+
+
+

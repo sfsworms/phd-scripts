@@ -110,7 +110,6 @@ remove_stop_codons <- function(peptide_data_frame){
   return(output_df)
 }
 
-
 standard_sequence2 <- function(aa_seq) {
   
   # Calculate the number of C's in each sequence
@@ -144,3 +143,21 @@ standard_sequence2 <- function(aa_seq) {
   
   return(standard_seq)
 }
+
+# The below function takes a count_set. For each peptide sequence produced (including circular homonyms), it looks at all the pairwise
+# combination of gene producing those peptides, and look at the correlation coefficient of enrichment ratios. 
+# As of now, it just ignore infinite enrichment rations (where no reads are seen in one of the generation)
+get_enrichment_list <- function(df){
+  ratio_df <- df %>%
+    filter(!is.na(enrichment_ratio_log)) %>%
+    split(., .$standard_seq) %>%
+    Filter(function(x) nrow(x) >1, .) %>%
+    lapply(FUN= function(df) df$enrichment_ratio_log) %>%
+    lapply(FUN= function(list) t(combn(list, m=2))) %>%
+    lapply(FUN = data.frame) %>%
+    Reduce(rbind,.)
+  
+  return(ratio_df)
+}
+
+

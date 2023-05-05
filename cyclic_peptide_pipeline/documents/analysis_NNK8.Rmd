@@ -95,16 +95,16 @@ sequences_after_nnk_filtering <- count_set %>%
 
 sequences_filtered_by_nnk_filtering <- dna_unique - sequences_after_nnk_filtering
  
-average_reads_after_nnk_filtering <- count_set %>% filter(grepl("^TGC([ATGC][ATGC][GT]){3}$", seq)) %>%  select(c("gen1_24", "gen5_24")) %>% rowSums() %>% mean() %>% round(digits = 0)
+average_reads_after_nnk_filtering <- count_set %>% filter(grepl("^TGC([ATGC][ATGC][GT]){7}$", seq)) %>%  select(c("gen1_24", "gen5_24")) %>% rowSums() %>% mean() %>% round(digits = 0)
 
-median_reads_after_nnk_filtering <- count_set %>% filter(grepl("^TGC([ATGC][ATGC][GT]){3}$", seq)) %>%  select(c("gen1_24", "gen5_24")) %>% rowSums() %>% median() %>% round(digits = 0)
+median_reads_after_nnk_filtering <- count_set %>% filter(grepl("^TGC([ATGC][ATGC][GT]){7}$", seq)) %>%  select(c("gen1_24", "gen5_24")) %>% rowSums() %>% median() %>% round(digits = 0)
 
-average_reads_nnk_filtered_seq <- count_set %>% filter(!grepl("^TGC([ATGC][ATGC][GT]){3}$", seq)) %>%  select(c("gen1_24", "gen5_24")) %>% rowSums() %>% mean() %>% round(digits = 0)
+average_reads_nnk_filtered_seq <- count_set %>% filter(!grepl("^TGC([ATGC][ATGC][GT]){7}$", seq)) %>%  select(c("gen1_24", "gen5_24")) %>% rowSums() %>% mean() %>% round(digits = 0)
 
 coverage_after_nnk_filtering <- ((sequences_after_nnk_filtering/(32^3))*100) %>% round(digits = 2)
 
 count_set <- count_set %>%
-    filter(grepl("^TGC([ATGC][ATGC][GT]){3}$", seq))
+    filter(grepl("^TGC([ATGC][ATGC][GT]){7}$", seq))
 
 ```
 
@@ -223,21 +223,7 @@ Some of them are highly present at gen1! But even those have a bunch of stop cod
 I should expect the enrichment ratio for the same peptide sequence to correlate pretty well.
 
 ```{r 'Looking at the correlation of enrichment_ratio'}
-# Writing the below as a function
 
-get_enrichment_cor_coeff <- function(df){
- ratio_df <- df %>%
-  filter(!is.na(enrichment_ratio_log)) %>%
-  split(., .$standard_seq) %>%
-  Filter(function(x) nrow(x) >1, .) %>%
-  apply(FUN= function(df) df$enrichment_ratio_log) %>%
-  lapply(FUN= function(list) t(combn(list, m=2))) %>%
-  lapply(FUN = data.frame) %>%
-  Reduce(rbind,.)
- 
- corellation <- cor(ratio_df$X1, ratio_df$X2)
- return(corellation)
-}
 
 # For NNK, induced
 
@@ -254,7 +240,6 @@ enrichment_ratio_log_coeff <- gene_groups %>%
   lapply(FUN = data.frame) %>%
   Reduce(rbind,.)
 
-cor(enrichment_ratio_log_coeff$X1, enrichment_ratio_log_coeff$X2)
 
 libraries = c("nnb","nnk")
 conditions = c("induced","repressed")
