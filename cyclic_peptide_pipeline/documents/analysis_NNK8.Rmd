@@ -35,7 +35,7 @@ This is the analysis of the peptides from the drift experiment. The required dat
 ```{r 'load datasets', echo=FALSE}
 directory <- "C:/Users/worms/ngs_data/2022_06_07_drift_seq/90-666155004b/00_fastq/all_files"
 
-count_set <- read.csv2(file = file.path(directory, "count_set_short_std.csv"),
+count_set <- read.csv2(file = file.path(directory, "count_set_long_std.csv"),
                   nrow = n_reads) 
 
 # Going to drop all the infinite enrichment ratio to NA
@@ -60,7 +60,7 @@ Let's look at the subset of sequences with stops codons. `r sequences_with_stop`
 ### Reads not starting with TGC
 
 ```{r `subsetting`}
-average_bad_reads <- count_set %>% filter(!grepl("^TGC.*", seq)) %>% select(c("gen1_12", "gen5_12")) %>% rowSums() %>% mean() %>% round(digits = 0)
+average_bad_reads <- count_set %>% filter(!grepl("^TGC.*", seq)) %>% select(c("gen1_24", "gen5_24")) %>% rowSums() %>% mean() %>% round(digits = 0)
 
 count_set <- count_set %>%
     filter(grepl("^TGC.*", seq))
@@ -68,7 +68,7 @@ count_set <- count_set %>%
 unique_sequences_good <- count_set %>% pull(peptide_seq) %>% unique() %>% length()
 
 
-average_good_reads <- count_set %>% select(c("gen1_12", "gen5_12")) %>% rowSums() %>% mean() %>% round(digits = 0)
+average_good_reads <- count_set %>% select(c("gen1_24", "gen5_24")) %>% rowSums() %>% mean() %>% round(digits = 0)
 
 ```
 
@@ -88,18 +88,18 @@ I can expect at most `r 21^3` different peptide sequences (counting stops), so m
 
 ```{r 'filtering NNK'}
 sequences_after_nnk_filtering <- count_set %>% 
-  filter(grepl("^TGC([ATGC][ATGC][GT]){3}$", seq)) %>% 
+  filter(grepl("^TGC([ATGC][ATGC][GT]){7}$", seq)) %>% 
   pull(seq) %>% 
   unique() %>% 
   length()
 
 sequences_filtered_by_nnk_filtering <- dna_unique - sequences_after_nnk_filtering
  
-average_reads_after_nnk_filtering <- count_set %>% filter(grepl("^TGC([ATGC][ATGC][GT]){3}$", seq)) %>%  select(c("gen1_12", "gen5_12")) %>% rowSums() %>% mean() %>% round(digits = 0)
+average_reads_after_nnk_filtering <- count_set %>% filter(grepl("^TGC([ATGC][ATGC][GT]){3}$", seq)) %>%  select(c("gen1_24", "gen5_24")) %>% rowSums() %>% mean() %>% round(digits = 0)
 
-median_reads_after_nnk_filtering <- count_set %>% filter(grepl("^TGC([ATGC][ATGC][GT]){3}$", seq)) %>%  select(c("gen1_12", "gen5_12")) %>% rowSums() %>% median() %>% round(digits = 0)
+median_reads_after_nnk_filtering <- count_set %>% filter(grepl("^TGC([ATGC][ATGC][GT]){3}$", seq)) %>%  select(c("gen1_24", "gen5_24")) %>% rowSums() %>% median() %>% round(digits = 0)
 
-average_reads_nnk_filtered_seq <- count_set %>% filter(!grepl("^TGC([ATGC][ATGC][GT]){3}$", seq)) %>%  select(c("gen1_12", "gen5_12")) %>% rowSums() %>% mean() %>% round(digits = 0)
+average_reads_nnk_filtered_seq <- count_set %>% filter(!grepl("^TGC([ATGC][ATGC][GT]){3}$", seq)) %>%  select(c("gen1_24", "gen5_24")) %>% rowSums() %>% mean() %>% round(digits = 0)
 
 coverage_after_nnk_filtering <- ((sequences_after_nnk_filtering/(32^3))*100) %>% round(digits = 2)
 
@@ -108,7 +108,7 @@ count_set <- count_set %>%
 
 ```
 
-This filtering step removes `r sequences_filtered_by_nnk_filtering` sequences with an average of `r average_reads_nnk_filtered_seq` reads each. `r sequences_after_nnk_filtering` sequences remains with an average of `r average_reads_after_nnk_filtering` each.(But only a median of `count_set %>% filter(grepl("^TGC([ATGC][ATGC][GT]){3}$", seq)) %>%  select(c("gen1_12", "gen5_12")) %>% rowSums() %>% mean() %>% round(digits = 0)`) This is `r coverage_after_nnk_filtering`% coverage at the DNA level.
+This filtering step removes `r sequences_filtered_by_nnk_filtering` sequences with an average of `r average_reads_nnk_filtered_seq` reads each. `r sequences_after_nnk_filtering` sequences remains with an average of `r average_reads_after_nnk_filtering` each.(But only a median of `count_set %>% filter(grepl("^TGC([ATGC][ATGC][GT]){3}$", seq)) %>%  select(c("gen1_24", "gen5_24")) %>% rowSums() %>% mean() %>% round(digits = 0)`) This is `r coverage_after_nnk_filtering`% coverage at the DNA level.
 
 ### Coverage and abundance in gen 1
 
@@ -116,7 +116,7 @@ I'm going to check specifically the gen 1 coverage and distribution of abundance
 
 ```{r}
 unique_gen1_sequence <- count_set %>%
-  filter(gen1_12 != 0) %>%
+  filter(gen1_24 != 0) %>%
   pull(seq) %>%
   unique() %>%
   length()
@@ -125,7 +125,7 @@ unique_gen1_sequence <- count_set %>%
 So `r unique_gen1_sequence` are present in generation 1, that most of them (remember `r sequences_after_nnk_filtering` total sequences.).
 
 ```{r}
-p <- ggplot(data = count_set %>% mutate(gen1_12), aes(x = library, y = gen1_12)) +
+p <- ggplot(data = count_set %>% mutate(gen1_24), aes(x = library, y = gen1_24)) +
   geom_violin() + 
   labs(x = "Library", y = "Count") +
   ylim(0,100)
@@ -175,7 +175,7 @@ The NNB libraries are larger than the NNK who only have around 2/3 of total cove
 The very high number could be PCR artifact? If so they shouldn't correlate between generation.
 
 ```{r 'Test correlation'}
-ggplot(data = count_set, aes(x= gen1_12, y = gen5_12)) +
+ggplot(data = count_set, aes(x= gen1_24, y = gen5_24)) +
   geom_point() +
   facet_grid(library~induction)
 ```
@@ -210,8 +210,8 @@ So the numbers of sequences that are completely purged in the NNK library in ind
 interest_pept <- count_set %>% filter(library == "nnk") %>%
   filter(enrichment_ratio == 0) %>%
   filter(induction == "induced") %>%
-  arrange(desc(gen1_12)) %>% 
-  filter(gen1_12 > 200) %>% pull(standard_seq)
+  arrange(desc(gen1_24)) %>% 
+  filter(gen1_24 > 200) %>% pull(standard_seq)
 
 interest_pept %>% grepl("\\*",.) %>% mean()
 
@@ -223,12 +223,28 @@ Some of them are highly present at gen1! But even those have a bunch of stop cod
 I should expect the enrichment ratio for the same peptide sequence to correlate pretty well.
 
 ```{r 'Looking at the correlation of enrichment_ratio'}
+# Writing the below as a function
+
+get_enrichment_cor_coeff <- function(df){
+ ratio_df <- df %>%
+  filter(!is.na(enrichment_ratio_log)) %>%
+  split(., .$standard_seq) %>%
+  Filter(function(x) nrow(x) >1, .) %>%
+  apply(FUN= function(df) df$enrichment_ratio_log) %>%
+  lapply(FUN= function(list) t(combn(list, m=2))) %>%
+  lapply(FUN = data.frame) %>%
+  Reduce(rbind,.)
+ 
+ corellation <- cor(ratio_df$X1, ratio_df$X2)
+ return(corellation)
+}
+
 # For NNK, induced
 
 gene_groups <- count_set %>%
   filter(!is.na(enrichment_ratio_log)) %>%
-  filter(library == "nnk") %>%
-  filter(induction == "repressed") %>%
+  filter(library == "nnb") %>%
+  filter(induction == "induced") %>%
   split(., .$standard_seq) %>%
   Filter(function(x) nrow(x) >1, .)
 
@@ -239,13 +255,31 @@ enrichment_ratio_log_coeff <- gene_groups %>%
   Reduce(rbind,.)
 
 cor(enrichment_ratio_log_coeff$X1, enrichment_ratio_log_coeff$X2)
+
+libraries = c("nnb","nnk")
+conditions = c("induced","repressed")
+
+results = data.frame(case = character(),
+                     coefficient = numeric())
+
+for(i in libraries){
+  for(j in conditions){
+    name <- paste0(i,"_",j)
+    print(name)
+    coeff <- count_set %>% 
+      filter(library == i) %>%
+      filter(induction == j) %>%
+      get_enrichment_cor_coeff()
+    
+    new_line <- data.frame(case = name,
+                           coefficient = coeff)
+    results <- rbind(results, new_line)
+  }
+}
+
+
 # generalize to bits longer than 2
 
-enrichment_ratio_pairs <- lapply(gene_groups, function(df) df %>% pull(enrichment_ratio_log)) %>%
-  data.frame() %>%
-  t() %>% data.frame()
-
-colnames(enrichment_ratio_pairs) = c("a","b")
 
 p <- ggplot(enrichment_ratio_pairs, aes(a , b)) +
   geom_point() +
