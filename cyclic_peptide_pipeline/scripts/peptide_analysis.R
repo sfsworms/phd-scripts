@@ -34,152 +34,91 @@ run_names_long <- run_names[grepl("24", run_names)]
 file_list_short <- file_list[grepl("12", file_list)]
 file_list_long <- file_list[grepl("24", file_list)]
 
-# Import the short set
+# Short set
+
+## Import the short set
 merged_set_short <- create_count_set(directory, file_list_short, run_names_short)
 
-
-# Pivot them to a longer format with a library column
+# Pivot it to a longer format with a library and a condition columns
 merged_set_short <- merged_set_short %>% 
   pivot_longer(cols = c(3:8),names_to = "run_name", values_to = "count") %>%
   separate_wider_regex(cols = "run_name", c(library = ".*?", "_", experiment = ".*")) %>%
-  pivot_wider(id_cols = c("seq", "peptide_seq", "library"), names_from = "experiment", values_from = "count")
+  pivot_wider(id_cols = c("seq", "peptide_seq", "library"), names_from = "experiment", values_from = "count") %>%
+  pivot_longer( cols = contains("gen5"), names_to = "condition", values_to = "gen5") %>% 
+  relocate("condition", .after = 3) %>%
+  mutate(condition = str_extract(condition, "(?<=_)[^_]{3}(?=_)")) %>%
+  rename("gen1_lb_12" = "gen1")
 
-# Save the merged set
-write.csv2(merged_set_short, file = file.path(directory,"merged_set_short.csv"), row.names = FALSE)
-write.csv2(merged_set_long, file = file.path(directory,"merged_set_long.csv"), row.names = FALSE)
+## Compute ratios for each conditions 
 
-# Now going to process the short set. 
+merged_set_short <- merged_set_short %>%
+  compute_ratios(df = .,
+                 count.cols = c(5,6),
+                 info.cols = c(3,4))
 
-# Going to split the set for induced and repressed conditions. Drop the lines containing only
-# zeros
 
-induced_set_short <- merged_set_short %>%
-  select(!contains("glu")) %>%
-  filter(rowSums(.[-c(1:3)]) != 0)
+# Rename the induction
 
-# Don't need medium info anymore
-colnames(induced_set_short) <- gsub("ara_|lb_|glu_", "", colnames(induced_set_short))
+merged_set_short <- merged_set_short %>%
+  mutate(condition = ifelse(condition == "ara", "induced", "repressed"))
 
-repressed_set_short <- merged_set_short%>%
-  select(!contains("ara")) %>%
-  filter(rowSums(.[-c(1:3)]) != 0)
-
-colnames(repressed_set_short) <- gsub("ara_|lb_|glu_", "", colnames(repressed_set_short))
-
-## Compute sum of counts for each condition and then compute ratios of each read as a percentage
-## of total compute an enrichment ratio based on the final ratio over the initial one, and removes
-## NAs caused by divide by zero error
-
-induced_set_short <- induced_set_short %>%
-  compute_ratios()
-
-repressed_set_short <- repressed_set_short %>%
-  compute_ratios()
-
-## Export the two data sets
-
-peptide_types <- "short"
-
-write.csv2(induced_set_short, 
-           file = file.path(dirname(directory), 
-                            paste0("induced_set_", 
-                                   peptide_types, 
-                                   ".csv")),
-           row.names = FALSE)
-
-write.csv2(repressed_set_short, file = file.path(dirname(directory), paste("repressed_set", peptide_types, ".csv",
-                                                                           sep = "")),row.names = FALSE)
-
-## Make a merged set and write it
-
-count_set <- rbind(induced_set_short %>% 
-                     mutate(induction = "induced"),
-                   repressed_set_short %>%
-                     mutate(induction = "repressed")) %>%
-  mutate(induction = as.factor(induction))
-
-## Randomize the order of the data frame so I can just grab a part of it.
-
-count_set <- count_set[sample(nrow(count_set)), ]
 
 ## Add a 'standard seq' column to take into account the cyclisation
 
-count_set <- count_set %>%
+merged_set_short <- merged_set_short  %>%
   mutate(standard_seq = standard_sequence(peptide_seq), .after = peptide_seq)
 
+# Randomize the order 
 
-## Write the set
-write.csv2(count_set, 
-           file = file.path(dirname(directory), paste("count_set_std", peptide_types, ".csv",
-                                                      sep = "")),
+merged_set_short <- merged_set_short[sample(nrow(merged_set_short)), ]
+
+# Write the set
+
+write.csv2(merged_set_short, 
+           file = file.path(dirname(directory), "count_set_short.csv"),
            row.names = FALSE)
 
-# Now the same for the long file
+# Long set
+
+
+## Import the long set
 merged_set_long <- create_count_set(directory, file_list_long, run_names_long)
 
-
-# Pivot to a longer format with libraries
+# Pivot it to a longer format with a library and a condition columns
 merged_set_long <- merged_set_long %>% 
   pivot_longer(cols = c(3:8),names_to = "run_name", values_to = "count") %>%
   separate_wider_regex(cols = "run_name", c(library = ".*?", "_", experiment = ".*")) %>%
-  pivot_wider(id_cols = c("seq", "peptide_seq", "library"), names_from = "experiment", values_from = "count")
+  pivot_wider(id_cols = c("seq", "peptide_seq", "library"), names_from = "experiment", values_from = "count") %>%
+  pivot_longer( cols = contains("gen5"), names_to = "condition", values_to = "gen5") %>% 
+  relocate("condition", .after = 3) %>%
+  mutate(condition = str_extract(condition, "(?<=_)[^_]{3}(?=_)")) %>%
+  rename("gen1_lb_12" = "gen1")
 
-induced_set_long <- merged_set_long %>%
-  select(!contains("glu")) %>%
-  filter(rowSums(.[-c(1:3)]) != 0)
+## Compute ratios for each conditions 
 
-# Don't need medium info anymore
-colnames(induced_set_long) <- gsub("ara_|lb_|glu_", "", colnames(induced_set_long))
+merged_set_long <- merged_set_long %>%
+  compute_ratios(df = .,
+                 count.cols = c(5,6),
+                 info.cols = c(3,4))
 
-repressed_set_long <- merged_set_long%>%
-  select(!contains("ara")) %>%
-  filter(rowSums(.[-c(1:3)]) != 0)
 
-colnames(repressed_set_long) <- gsub("ara_|lb_|glu_", "", colnames(repressed_set_long))
+# Rename the induction
 
-## Compute sum of counts for each condition and then compute ratios of each read as a percentage
-## of total compute an enrichment ratio based on the final ratio over the initial one, and removes
-## NAs caused by divide by zero error
+merged_set_long <- merged_set_long %>%
+  mutate(condition = ifelse(condition == "ara", "induced", "repressed"))
 
-induced_set_long <- induced_set_long %>%
-  compute_ratios()
 
-repressed_set_long <- repressed_set_long %>%
-  compute_ratios()
+## Add a 'standard seq' column to take into account the cyclisation
 
-## Export the two data sets
+merged_set_long <- merged_set_long  %>%
+  mutate(standard_seq = standard_sequence(peptide_seq), .after = peptide_seq)
 
-peptide_types <- "long"
+# Randomize the order 
 
-write.csv2(induced_set_long, 
-           file = file.path(dirname(directory), 
-                            paste0("induced_set_", 
-                                   peptide_types, 
-                                   ".csv")),
-           row.names = FALSE)
+merged_set_long <- merged_set_long[sample(nrow(merged_set_long)), ]
 
-write.csv2(repressed_set_long, file = file.path(dirname(directory), paste("repressed_set", peptide_types, ".csv",
-                                                                          sep = "")),row.names = FALSE)
+# Write the set
 
-## Make a merged long set and write it
-
-count_set <- rbind(induced_set_long %>% 
-                     mutate(induction = "induced"),
-                   repressed_set_long %>%
-                     mutate(induction = "repressed")) %>%
-  mutate(induction = as.factor(induction))
-
-## Randomize the order of the data frame so I can just grab a part of it.
-
-count_set <- count_set[sample(nrow(count_set)), ]
-
-count_set_long <- read.csv2(file = "C:/Users/worms/ngs_data/2022_06_07_drift_seq/90-666155004b/00_fastq/all_files/count_set_long.csv")
-
-#Add the standard sequence
-count_set_long <- count_set_long %>%
-  mutate(standard_seq = standard_sequence2(peptide_seq), .after = peptide_seq)
-
-write.csv2(count_set_long, 
-           file = file.path(dirname(directory), paste("count_set_std2", peptide_types, ".csv",
-                                                      sep = "")),
+write.csv2(merged_set_long, 
+           file = file.path(dirname(directory), "count_set_long.csv"),
            row.names = FALSE)

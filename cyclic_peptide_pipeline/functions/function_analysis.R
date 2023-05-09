@@ -32,33 +32,42 @@ create.lib <- function(libSize = 10, pepLength = 4, alphabet = c("XXX","YYY")){
 
 # compute_ratios
 ## compute an enrichment ratio based on the final ratio over the initial one, and removes NAs caused by divide by zero error
-## Assumed a merged count set where each row has count and is named library_generation_other
+## Assumed a merged count set where each row has counts and is named library_generation_other
 
-compute_ratios <- function(df){
+#' compute_ratios
+#' compute an enrichment ratio based on the final ratio over the initial one, and removes NAs caused by divide by zero error
+#' This function assumes a count set where each columns has counts. still need to make the enrichment work if the columns aren't name gen1 and gen5
+#' 
+#' @param df The count_set with the counts column to be ratio'ed. 
+#' @param count.cols Columns containing the counts to be ratio'ed
+#' @param compute_enrichment Should an enrichment be computed. Default to TRUE, remove if not applicable. Only works if you have two columns in count.cols()
+#' @param info.cols Columns containing information by which to split the count_set if columns contains counts from multiple sequencing
+#'
+#' @return
+#' @export
+#'
+#' @examples
+compute_ratios <- function(df, count.cols = c(5:6), info.cols = c(3:4), compute_enrichment = TRUE){
   # Get all the colnames and decide new colnames
   col_names <- colnames(df)
-  new_col_names <- paste0(col_names[-c(1:3)],"_ratio")
+  new_col_names <- paste0(col_names[count.cols],"_ratio")
   
-  # For all columns apart from the seq and peptide_seq, compute a ratio and add it to the df
+  df <- df %>% 
+      group_by(across(all_of(col_names[info.cols]))) %>% # Group them by the columns used 
+      mutate(across(all_of(col_names[count.cols]), function(x){x/sum(x)}, .names = "{.col}_ratio")) %>% # Calculate a ratio for each column specified in count.cols
+      ungroup() # Remove the grouping
+      
+  # Compute a gen5 over gen1 ratio if the option is set
   
-  for(name in col_names[-c(1:3)]){
-    column <- df %>% select(all_of(name))
-    new_column <- column/sum(column)
-    df <- cbind(df, new_column)
+  if(compute_enrichment){
+    if(length(count.cols) != 2){
+      break
+    }
+    
+    df <- df %>%
+      mutate(enrichment_ratio = gen5_ratio/gen1_ratio) %>%
+      mutate(enrichment_ratio_log = log2(enrichment_ratio))
   }
-  
-  colnames(df) <- c(col_names, new_col_names)
-  
-  # Compute a gen5 over gen1 ratio
-  
-  gen1 <- df %>% select(contains("gen1") & contains("ratio"))
-  gen5 <- df %>% select(contains("gen5") & contains("ratio"))
-  enrichment_ratio <- gen5/gen1
-  colnames(enrichment_ratio) <- "enrichment_ratio"
-  
-  df <- df %>%
-    cbind(enrichment_ratio) %>% 
-    mutate(enrichment_ratio_log = log2(enrichment_ratio))
     
   return(df)
 }
@@ -111,11 +120,20 @@ remove_stop_codons <- function(peptide_data_frame){
   return(output_df)
 }
 
-# Standard sequences
 ## This function goes through a character list representing cyclic peptides. It looks at all possible Cs and defined a "standard" by
 ## comparing ASCII value so that the sequence starting with C with the highest value is taken
 
 ## Note on 09/05/2023 this was renamed standard_sequence from standard_sequence2, will need to rename in the functions.
+
+#' Standard sequence
+#' This function goes through a character list representing cyclic peptides. It looks at all possible Cs and defined a "standard" by
+#' Note on 09/05/2023 this was renamed standard_sequence from standard_sequence2, will need to rename in the functions.
+#' @param aa_seq 
+#'
+#' @return A character vector containing the sequence starting with C with the highest ASCII value.
+#' @export
+#'
+#' @examples
 
 standard_sequence <- function(aa_seq) {
   
@@ -154,6 +172,7 @@ standard_sequence <- function(aa_seq) {
 # The below function takes a count_set. For each peptide sequence produced (including circular homonyms), it looks at all the pairwise
 # combination of gene producing those peptides, and look at the correlation coefficient of enrichment ratios. 
 # As of now, it just ignore infinite enrichment rations (where no reads are seen in one of the generation)
+
 get_enrichment_list <- function(df){
   ratio_df <- df %>%
     filter(!is.na(enrichment_ratio_log)) %>%
