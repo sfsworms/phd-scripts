@@ -104,13 +104,20 @@ create_count_set <- function(directory, file_list, run_names){
 }
 
 # remove_stop_codons()
-##Create a function that drop all the peptides with stop codons from a data frame
+## Create a function that drop all the peptides with stop codons from a data frame 
+
 remove_stop_codons <- function(peptide_data_frame){
   output_df <- peptide_data_frame[!grepl("\\*", peptide_data_frame$peptide_seq),]
   return(output_df)
 }
 
-standard_sequence2 <- function(aa_seq) {
+# Standard sequences
+## This function goes through a character list representing cyclic peptides. It looks at all possible Cs and defined a "standard" by
+## comparing ASCII value so that the sequence starting with C with the highest value is taken
+
+## Note on 09/05/2023 this was renamed standard_sequence from standard_sequence2, will need to rename in the functions.
+
+standard_sequence <- function(aa_seq) {
   
   # Calculate the number of C's in each sequence
   num_c <- str_count(aa_seq, "C")
