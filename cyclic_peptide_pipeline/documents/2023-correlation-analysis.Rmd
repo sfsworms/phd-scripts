@@ -30,8 +30,8 @@ source("../functions/function_analysis.R")
 ```{r 'data_loading', include = FALSE}
 directory <- "C:/Users/worms/ngs_data/2022_06_07_drift_seq/90-666155004b/00_fastq/all_files"
 
-count_set_long <- read.csv2(file = file.path(directory, "merged_set_long.csv")) 
-count_set_short <- read.csv2(file = file.path(directory, "merged_set_short.csv"))
+count_set_long <- read.csv2(file = file.path(directory, "count_set_long_std.csv")) 
+count_set_short <- read.csv2(file = file.path(directory, "count_set_short_std.csv"))
 
 # Going to drop all the infinite enrichment ratios to NAs
 

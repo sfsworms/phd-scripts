@@ -78,13 +78,14 @@ write.csv2(merged_set_short,
            file = file.path(dirname(directory), "count_set_short.csv"),
            row.names = FALSE)
 
+
 # Long set
 
 
 ## Import the long set
 merged_set_long <- create_count_set(directory, file_list_long, run_names_long)
 
-# Pivot it to a longer format with a library and a condition columns
+## Pivot it to a longer format with a library and a condition columns
 merged_set_long <- merged_set_long %>% 
   pivot_longer(cols = c(3:8),names_to = "run_name", values_to = "count") %>%
   separate_wider_regex(cols = "run_name", c(library = ".*?", "_", experiment = ".*")) %>%
@@ -95,30 +96,25 @@ merged_set_long <- merged_set_long %>%
   rename("gen1_lb_12" = "gen1")
 
 ## Compute ratios for each conditions 
-
 merged_set_long <- merged_set_long %>%
   compute_ratios(df = .,
                  count.cols = c(5,6),
                  info.cols = c(3,4))
 
 
-# Rename the induction
-
+## Rename the induction
 merged_set_long <- merged_set_long %>%
   mutate(condition = ifelse(condition == "ara", "induced", "repressed"))
 
 
 ## Add a 'standard seq' column to take into account the cyclisation
-
 merged_set_long <- merged_set_long  %>%
   mutate(standard_seq = standard_sequence(peptide_seq), .after = peptide_seq)
 
-# Randomize the order 
-
+## Randomize the order 
 merged_set_long <- merged_set_long[sample(nrow(merged_set_long)), ]
 
-# Write the set
-
+## Write the set
 write.csv2(merged_set_long, 
            file = file.path(dirname(directory), "count_set_long.csv"),
            row.names = FALSE)
