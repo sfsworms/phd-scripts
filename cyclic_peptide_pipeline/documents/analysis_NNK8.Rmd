@@ -24,304 +24,57 @@ library(ggplot2)
 source("../functions/function_analysis.R")
 
 #Work with a limited number of reads to get something I can work with easily.
-n_reads <- 1*10^8
+
 
 ```
 
 # Introduction
 
-This is the analysis of the peptides from the drift experiment. The required datasets were created in the "peptide_analysis.R" file. I'm going to do it on a subset of of `r print(n_reads)` reads for the short dataset for now.
+This is the analysis of the peptides from the drift experiment, looking the the induced, NNK8 file, the only one that showed correlation between synonymous sequence. The required datasets were created in the "peptide_analysis.R" file. I'm going to do it on a subset of of `r print(n_reads)` reads for now. The encoding of enrichment ratio is 'NA' in cases where no reads were present in the first generation and some in the fifth (giving an 'infinite' enrichment ratio).
 
 ```{r 'load datasets', echo=FALSE}
 directory <- "C:/Users/worms/ngs_data/2022_06_07_drift_seq/90-666155004b/00_fastq/all_files"
 
-count_set <- read.csv2(file = file.path(directory, "count_set_long_std.csv"),
-                  nrow = n_reads) 
+# Read a sample of the set
+count_set <- read.csv2(file = file.path(directory, "count_set_long_nnk_induced_100ksample.csv")) 
 
 # Going to drop all the infinite enrichment ratio to NA
 count_set <- count_set %>%
-  mutate(enrichment_ratio = ifelse(is.infinite(enrichment_ratio),NA,enrichment_ratio)) %>%
-  mutate(enrichment_ratio_log = ifelse(is.infinite(enrichment_ratio_log),NA,enrichment_ratio_log)) 
+  mutate(enrichment_ratio = ifelse(is.infinite(enrichment_ratio),NA,enrichment_ratio)) 
 ```
 
-## Read quality check
+## Sequence quality and reads distribution
 
-### Stop codons
-
-```{r}
-unique_sequences <- count_set %>% pull(peptide_seq) %>% unique() %>% length()
-sequences_with_stop <- count_set %>% filter(grepl("\\*", peptide_seq)) %>% pull(peptide_seq) %>% unique() %>% length()
-percent_with_stop <- sequences_with_stop/unique_sequences
-
-```
-
-Let's look at the subset of sequences with stops codons. `r sequences_with_stop` sequences (`r percent_with_stop`)% of the total) contains stop codons. A lot of those are lower quality, not starting with TGC.
-
-### Reads not starting with TGC
-
-```{r `subsetting`}
-average_bad_reads <- count_set %>% filter(!grepl("^TGC.*", seq)) %>% select(c("gen1_24", "gen5_24")) %>% rowSums() %>% mean() %>% round(digits = 0)
-
-count_set <- count_set %>%
-    filter(grepl("^TGC.*", seq))
-
-unique_sequences_good <- count_set %>% pull(peptide_seq) %>% unique() %>% length()
-
-
-average_good_reads <- count_set %>% select(c("gen1_24", "gen5_24")) %>% rowSums() %>% mean() %>% round(digits = 0)
-
-```
-
-I subtract the sequences that do not start with the correct codon (*TGC*) and work only with those for the rest of this document. Out of `r unique_sequences`, this leaves me `r unique_sequences_good`. 
-
-The sequences not starting with TGC are mostly lower quality reads. The average number of reads (over all library and generation) per sequence is `r average_good_reads` for the sequences starting with TGC, but just `r average_bad_reads` for those not starting with TGC. 
-
-
-### Coverage
-
-```{r 'checking coverage'}
-dna_unique <- count_set %>% pull("seq") %>% unique() %>% length()
-coverage <- (unique_sequences_good/21^3*100) %>% round(digits = 2)
-```
-
-I can expect at most `r 21^3` different peptide sequences (counting stops), so my coverage is `r coverage`%. Pretty good. At the DNA level, I expect `r 32^3` unique sequences with NNK codons and I have `r dna_unique`. This is presumably because I have low-quality sequence where the third base of my codons isn't a G or T. I will filter those too. 
-
-```{r 'filtering NNK'}
-sequences_after_nnk_filtering <- count_set %>% 
-  filter(grepl("^TGC([ATGC][ATGC][GT]){7}$", seq)) %>% 
-  pull(seq) %>% 
+```{r 'sequence_quality'}
+unique_seq <- count_set %>%
+  pull(seq) %>%
   unique() %>% 
   length()
 
-sequences_filtered_by_nnk_filtering <- dna_unique - sequences_after_nnk_filtering
- 
-average_reads_after_nnk_filtering <- count_set %>% filter(grepl("^TGC([ATGC][ATGC][GT]){7}$", seq)) %>%  select(c("gen1_24", "gen5_24")) %>% rowSums() %>% mean() %>% round(digits = 0)
-
-median_reads_after_nnk_filtering <- count_set %>% filter(grepl("^TGC([ATGC][ATGC][GT]){7}$", seq)) %>%  select(c("gen1_24", "gen5_24")) %>% rowSums() %>% median() %>% round(digits = 0)
-
-average_reads_nnk_filtered_seq <- count_set %>% filter(!grepl("^TGC([ATGC][ATGC][GT]){7}$", seq)) %>%  select(c("gen1_24", "gen5_24")) %>% rowSums() %>% mean() %>% round(digits = 0)
-
-coverage_after_nnk_filtering <- ((sequences_after_nnk_filtering/(32^3))*100) %>% round(digits = 2)
-
-count_set <- count_set %>%
-    filter(grepl("^TGC([ATGC][ATGC][GT]){7}$", seq))
+total_count <- count_set %>% select(5,6) %>% sum()
 
 ```
 
-This filtering step removes `r sequences_filtered_by_nnk_filtering` sequences with an average of `r average_reads_nnk_filtered_seq` reads each. `r sequences_after_nnk_filtering` sequences remains with an average of `r average_reads_after_nnk_filtering` each.(But only a median of `count_set %>% filter(grepl("^TGC([ATGC][ATGC][GT]){3}$", seq)) %>%  select(c("gen1_24", "gen5_24")) %>% rowSums() %>% mean() %>% round(digits = 0)`) This is `r coverage_after_nnk_filtering`% coverage at the DNA level.
-
-### Coverage and abundance in gen 1
-
-I'm going to check specifically the gen 1 coverage and distribution of abundance pre-selection. One concern is that the library was really skewed, and that some sequences were missing or almost missing.
+The data set contains ``r unique_seq` different DNA sequences, sequenced with `r total_count` reads. As expected the size of the library and sequencing means most sequences are sequenced a few times only, with few sequences vastly over represented (hundreds, or in very rare case over a thousand reads), either due to selection directly or potentially quality issues in the randomization of the primers. 
 
 ```{r}
-unique_gen1_sequence <- count_set %>%
-  filter(gen1_24 != 0) %>%
-  pull(seq) %>%
-  unique() %>%
-  length()
+table_gen1 <- count_set %>% select(5) %>% summary() %>% data.frame()
+table_gen5 <- count_set %>% select(6) %>% summary() %>% data.frame()
+kable(table_gen1 , label = "Distribution of reads in the first generation")
 ```
 
-So `r unique_gen1_sequence` are present in generation 1, that most of them (remember `r sequences_after_nnk_filtering` total sequences.).
+After five days of drift, the distribution is very skewed: most sequences aren't detected at all and have been purged. A small fraction of the sequences have been highly enriched with counts in the thousands of even hundreds of thousands. 
+
+A cursory glance shows that those sequences that were enriched have high counts even at gen1, compatible with the selection theory of initial imbalance in ratios. Let's have a closer look at that.
+
+### Are common sequences in gen1 more likely to be selected?
+
+I would like to investigate whether the sequences with a higher counts in the first generation tends to be positively selected.
 
 ```{r}
-p <- ggplot(data = count_set %>% mutate(gen1_24), aes(x = library, y = gen1_24)) +
-  geom_violin() + 
-  labs(x = "Library", y = "Count") +
-  ylim(0,100)
+plot_init <- ggplot(count_set, aes(x = gen1_24_ratio, y = enrichment_ratio)) +
+  geom_point()
 
-p %>% print() %>% suppressWarnings()
+plot_init
 ```
 
-So most have a count in the single or low two digits, but there is a very, very long tail. (Note that the above graph was truncated. The tail goes on to the tens of thousands.)
-
-## Enrichment ratio
-
-Let's have a look at the distribution of enrichment ratio, having dropped all the enrichment ratios that were infinite, or zeroes (so not present in one of the two generation). Overall it looks like a pretty symmetrical set in the NNB library, but there is a lot of heavily purged sequences in the induced section of NNK.
-
-```{r}
-tapply(count_set %>% filter(enrichment_ratio > 0) %>% pull(enrichment_ratio), 
-       count_set %>% filter(enrichment_ratio > 0) %>% mutate(lib_condition = paste(library, induction)) %>% pull(lib_condition), 
-       summary)
-
-```
-
-```{r 'histogram enrichment'}
-p <- ggplot(count_set, aes(x = enrichment_ratio_log)) +
-  geom_histogram(color = "black", fill = "white") +
-  labs(title = "Histogram of log(Enrichment Ratio", x = "Log2(Enrichment Ratio)", y = "Count") +
-  facet_grid(library~induction)
-
-p %>% print() %>% suppressWarnings()
-
-```
-The induced numers for NNK are interesting, why doesn't it repeat for the NNB library? Could it be that those are mixed too? :/
-
-```{r}
-get_sequence_number <- function(df){
-  count <- df %>%
-    unique() %>%
-    length()
-  return(count)
-}
-
-tapply(count_set %>% pull(seq), 
-       count_set %>% mutate(lib_condition = paste(library, induction)) %>% pull(lib_condition), 
-       get_sequence_number) %>% as.matrix() %>% knitr::kable()
-```
-
-The NNB libraries are larger than the NNK who only have around 2/3 of total coverage.
-
-The very high number could be PCR artifact? If so they shouldn't correlate between generation.
-
-```{r 'Test correlation'}
-ggplot(data = count_set, aes(x= gen1_24, y = gen5_24)) +
-  geom_point() +
-  facet_grid(library~induction)
-```
-
-Okay, this looks decent. I'm started to believe those numbers. A bit worried at the small number of sequences in the NNK set.
-
-### Purge
-
-I want to have a look at strongly purged peptides, that disappears entirely over time and as such have enrichment ratio of zero.
-
-```{r 'Testing the hypothesis that the missing peptides are purged'}
-number_of_purged_peptide_nnk <- count_set %>%
-  filter(library == "nnk") %>%
-  filter(enrichment_ratio == 0)  %>% 
-  pull(induction) %>% 
-  as.factor() %>%
-  summary()
-
-number_of_sequence_peptide_nnk <- count_set %>%
-  filter(library == "nnk") %>%
-  pull(induction) %>% 
-  as.factor() %>%
-  summary()
-
-percentages_of_purged_nnk <- ((number_of_purged_peptide_nnk/number_of_sequence_peptide_nnk)*100) %>%
-  round(digits = 2)
-```
-
-So the numbers of sequences that are completely purged in the NNK library in induction conditions are `r number_of_purged_peptide_nnk[1]` (`r percentages_of_purged_nnk[1]`% of sequences) and `r number_of_purged_peptide_nnk[2]` (`r percentages_of_purged_nnk[2]`% of sequences) in repression conditions. That's... coherent. 
-
-```{r 'Toying with the repressed sequences'}
-interest_pept <- count_set %>% filter(library == "nnk") %>%
-  filter(enrichment_ratio == 0) %>%
-  filter(induction == "induced") %>%
-  arrange(desc(gen1_24)) %>% 
-  filter(gen1_24 > 200) %>% pull(standard_seq)
-
-interest_pept %>% grepl("\\*",.) %>% mean()
-
-```
-Some of them are highly present at gen1! But even those have a bunch of stop codons, to the same ration expected of random sequences. However, the %age of stop codons dropped for very common sequences (100+). Am I just looking at noise? I guess under induction conditions, more peptides could be randomly purged. One way to know would be to look at multiple dna sequence with the same peptide product. 
-
-### Correlation of Enrichment ratios
-
-I should expect the enrichment ratio for the same peptide sequence to correlate pretty well.
-
-```{r 'Looking at the correlation of enrichment_ratio'}
-
-
-# For NNK, induced
-
-gene_groups <- count_set %>%
-  filter(!is.na(enrichment_ratio_log)) %>%
-  filter(library == "nnb") %>%
-  filter(induction == "induced") %>%
-  split(., .$standard_seq) %>%
-  Filter(function(x) nrow(x) >1, .)
-
-enrichment_ratio_log_coeff <- gene_groups %>%
-  lapply(FUN= function(df) df$enrichment_ratio_log) %>%
-  lapply(FUN= function(list) t(combn(list, m=2))) %>%
-  lapply(FUN = data.frame) %>%
-  Reduce(rbind,.)
-
-
-libraries = c("nnb","nnk")
-conditions = c("induced","repressed")
-
-results = data.frame(case = character(),
-                     coefficient = numeric())
-
-for(i in libraries){
-  for(j in conditions){
-    name <- paste0(i,"_",j)
-    print(name)
-    coeff <- count_set %>% 
-      filter(library == i) %>%
-      filter(induction == j) %>%
-      get_enrichment_cor_coeff()
-    
-    new_line <- data.frame(case = name,
-                           coefficient = coeff)
-    results <- rbind(results, new_line)
-  }
-}
-
-
-# generalize to bits longer than 2
-
-
-p <- ggplot(enrichment_ratio_pairs, aes(a , b)) +
-  geom_point() +
-   stat_smooth(method=lm)
-
-p
-
-# Only take those that have > 1 sequence
-
-```
-
-There is fairly good correlation (r correlation %>% round(digit = 2)) between the induced and repressed condition. The plot isn't fully symmetrical which I don't fully understand.
-
-```{r, include=TRUE}
-
-```
-
-### 'RR' motifs
-
-RR motifs are known to interfere with the membrane. Let look at the peptides with those motifs.
-
-```{r}
-count_set_RR <- count_set %>% 
-      filter(grepl("RR", peptide_seq))
-
-tapply(count_set$enrichment_ratio, count_set$induction, summary)
-
-# Color the points with RR motifs
-
-# mean_enrichment_ratio_log$RR <- mean_enrichment_ratio_log$peptide_seq %>% grepl("RR", .) %>% ifelse(., "RR", "not RR")
-# 
-# p <- ggplot(mean_enrichment_ratio_log, aes(x = enrichment_ratio_induced, y = enrichment_ratio_repressed, color = RR)) +
-#   geom_point(alpha = 0.5, size = 1) +
-#   facet_grid(RR ~ .) +
-#   xlab("Log2(Enrichment ratio) in the induced condition") +
-#   ylab("Log2(Enrichment ratio) in the repressed condition")
-
-
-```
-
-### Enrichment by charge
-
-### Background
-
-### Peptides with Proline
-
-### Hydrophobicity
-
-### Initial ration and enrichment ratios
-
-### His-rich peptides
-```{r}
-
-p <- ggplot(x_no_na, aes(a , b)) +
-  geom_point() +
-   stat_smooth(method=lm)
-
-p
-```
-No correlation at all?

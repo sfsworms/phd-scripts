@@ -167,7 +167,8 @@ p %>%
 
 ## Long peptides
 
-For the long peptides, the pattern is very similar, with one exception: the induced, NNK library has something closer to what we'd expect with a coefficient of 0,65.
+For the long peptides, the pattern is very similar, with one exception: the induced, NNK library has something closer to what we'd expect with a coefficient of 0,65 (95% confidence interval= 0
+.57-0.71).
 
 ```{r 'long peptide table'}
 kable(results_long %>%
@@ -275,8 +276,7 @@ for(i in libraries){
 }
 
 kable(read_num_long %>%
-        mutate(case = gsub(pattern = "_", replacement = "/", x = case)), caption = "Number of peptide sequence with multiple encoding genes for the long peptides.") %>%
-  kable_styling(latex_options = "striped") 
+        mutate(case = gsub(pattern = "_", replacement = "/", x = case)), caption = "Number of peptide sequence with multiple encoding genes for the long peptides.") 
 ```
 
 # Conclusion
