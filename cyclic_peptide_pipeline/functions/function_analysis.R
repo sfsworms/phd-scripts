@@ -158,7 +158,7 @@ standard_sequence <- function(aa_seq) {
       paste0(substring(multi_c_seq[j], i, nchar(multi_c_seq[j])),
              substring(multi_c_seq[j], 1, i-1)) 
     }) %>% max()
-    if(j %% 1000 ==0){print(paste0("Treated sequences: ",j))}
+    if(j %% 1000 ==0){print(paste0("Treated multi-c sequences: ",j))}
   }
   
   # Combine the sequences with one C and the chosen sequences for multi-C sequences

@@ -30,8 +30,8 @@ source("../functions/function_analysis.R")
 ```{r 'data_loading', include = FALSE}
 directory <- "C:/Users/worms/ngs_data/2022_06_07_drift_seq/90-666155004b/00_fastq/all_files"
 
-count_set_long <- read.csv2(file = file.path(directory, "count_set_long_std.csv")) 
-count_set_short <- read.csv2(file = file.path(directory, "count_set_short_std.csv"))
+count_set_long <- read.csv2(file = file.path(directory, "count_set_long.csv")) 
+count_set_short <- read.csv2(file = file.path(directory, "count_set_short.csv"))
 
 # Going to drop all the infinite enrichment ratios to NAs
 
@@ -90,7 +90,7 @@ for(i in libraries){
     
     ratio_list <- count_set_short %>% 
       filter(library == i) %>%
-      filter(induction == j) %>%
+      filter(condition == j) %>%
       get_enrichment_list()
     colnames(ratio_list) <- c("a", "b")
     
@@ -108,7 +108,7 @@ for(i in libraries){
     
     ratio_list <- count_set_long %>% 
       filter(library == i) %>%
-      filter(induction == j) %>%
+      filter(condition == j) %>%
       get_enrichment_list()
     colnames(ratio_list) <- c("a", "b")
     
@@ -140,7 +140,7 @@ for(i in libraries){
   for(j in conditions){
     df <- count_set_short %>%
       filter(library == i) %>%
-      filter(induction == j) %>%
+      filter(condition == j) %>%
       get_enrichment_list() %>%
       data.frame()
     
@@ -187,7 +187,7 @@ for(i in libraries){
   for(j in conditions){
     df <- count_set_long %>%
       filter(library == i) %>%
-      filter(induction == j) %>%
+      filter(condition == j) %>%
       get_enrichment_list() %>%
       data.frame()
     
@@ -246,7 +246,7 @@ for(i in libraries){
     
     count <- count_set_short %>%
       filter(library == i) %>%
-      filter(induction == j) %>%
+      filter(condition == j) %>%
       filter(!is.na(enrichment_ratio_log)) %>%
       split(., .$standard_seq) %>%
       Filter(function(x) nrow(x) >1, .) %>% 
@@ -264,7 +264,7 @@ for(i in libraries){
     
     count<- count_set_long %>%
             filter(library == i) %>%
-      filter(induction == j) %>%
+      filter(condition == j) %>%
     filter(!is.na(enrichment_ratio_log)) %>%
     split(., .$standard_seq) %>%
     Filter(function(x) nrow(x) >1, .) %>% length()

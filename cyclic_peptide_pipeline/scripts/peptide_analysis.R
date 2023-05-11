@@ -93,7 +93,7 @@ merged_set_long <- merged_set_long %>%
   pivot_longer( cols = contains("gen5"), names_to = "condition", values_to = "gen5") %>% 
   relocate("condition", .after = 3) %>%
   mutate(condition = str_extract(condition, "(?<=_)[^_]{3}(?=_)")) %>%
-  rename("gen1_lb_12" = "gen1")
+  rename("gen1_lb_24" = "gen1")
 
 ## Compute ratios for each conditions 
 merged_set_long <- merged_set_long %>%

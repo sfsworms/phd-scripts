@@ -18,6 +18,7 @@ output:
 knitr::opts_chunk$set(echo = FALSE, comment = '', fig.width = 6, fig.height = 6)
 
 library(tidyverse)
+library(knitr)
 library(ggplot2)
 
 #Load some custom functions
@@ -25,7 +26,7 @@ source("../functions/function_analysis.R")
 
 #Work with a limited number of reads to get something I can work with easily.
 
-
+n = 10^5
 ```
 
 # Introduction
@@ -36,7 +37,13 @@ This is the analysis of the peptides from the drift experiment, looking the the 
 directory <- "C:/Users/worms/ngs_data/2022_06_07_drift_seq/90-666155004b/00_fastq/all_files"
 
 # Read a sample of the set
-count_set <- read.csv2(file = file.path(directory, "count_set_long_nnk_induced_100ksample.csv")) 
+count_set <- read.csv2(file = file.path(directory, "count_set_long.csv"),
+                       nrows = n)
+
+# Take only NNK, induced peptides
+
+count_set <- count_set %>%
+  filter(library == "nnk" & condition == "induced")
 
 # Going to drop all the infinite enrichment ratio to NA
 count_set <- count_set %>%
@@ -51,16 +58,16 @@ unique_seq <- count_set %>%
   unique() %>% 
   length()
 
-total_count <- count_set %>% select(5,6) %>% sum()
+total_count <- count_set %>% select(gen1,gen5) %>% sum()
 
 ```
 
 The data set contains ``r unique_seq` different DNA sequences, sequenced with `r total_count` reads. As expected the size of the library and sequencing means most sequences are sequenced a few times only, with few sequences vastly over represented (hundreds, or in very rare case over a thousand reads), either due to selection directly or potentially quality issues in the randomization of the primers. 
 
 ```{r}
-table_gen1 <- count_set %>% select(5) %>% summary() %>% data.frame()
-table_gen5 <- count_set %>% select(6) %>% summary() %>% data.frame()
-kable(table_gen1 , label = "Distribution of reads in the first generation")
+table_gen1 <- count_set %>% select(gen1) %>% summary() %>% data.frame()
+table_gen5 <- count_set %>% select(gen5) %>% summary() %>% data.frame()
+kable(table_gen1 , caption = "Distribution of reads in the first generation")
 ```
 
 After five days of drift, the distribution is very skewed: most sequences aren't detected at all and have been purged. A small fraction of the sequences have been highly enriched with counts in the thousands of even hundreds of thousands. 
@@ -71,10 +78,12 @@ A cursory glance shows that those sequences that were enriched have high counts 
 
 I would like to investigate whether the sequences with a higher counts in the first generation tends to be positively selected.
 
-```{r}
-plot_init <- ggplot(count_set, aes(x = gen1_24_ratio, y = enrichment_ratio)) +
+```{r }
+plot_init <- ggplot(count_set, aes(x = gen1_ratio, y = enrichment_ratio_log)) +
   geom_point()
 
-plot_init
+plot_init %>% 
+  print %>%
+  suppressWarnings()
 ```
 
