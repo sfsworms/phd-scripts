@@ -3,30 +3,30 @@
 # analysis. That data frame has counts for all conditions as well as ratio of total read per
 # conditions and enrichment ratios.
 
+# Setup
+
 setwd(dir = "C:/Users/worms/phd-scripts/cyclic_peptide_pipeline")  # Directory containing the scripts
 source("functions/function_analysis.R")  #Functions used in the script
 
-# Load necessary libraries
+## Load necessary libraries
 library(tidyverse)  #Needed for data wrangling
 library(bioseq)  # Used to translate sequence
 
-# This folder should contain the CSV files with a column for sequence and a column for counts
+## This folder should contain the CSV files with a column for sequence and a column for counts
 directory <- "C:/Users/worms/ngs_data/2022_06_07_drift_seq/90-666155004b/00_fastq/all_files/peptide_count_csv"
 
-# Get the names of the counts .csv files
-
+## Get the names of the counts .csv files
 file_list <- list.files(directory)
 file_list <- file_list[grepl(".csv", file_list)]
 
-# Trim the file names to use as variable names.
-
+## Trim the file names to use as variable names.
 run_names <- file_list %>%
   gsub("peptide", "", .) %>%
   gsub("_count.csv", "", .) %>%
   tolower() %>%
   gsub("gen_", "gen", .)
 
-# Split the file names and run names based on the peptide size
+## Split the file names and run names based on the peptide size
 
 run_names_short <- run_names[grepl("12", run_names)]
 run_names_long <- run_names[grepl("24", run_names)]
@@ -81,7 +81,6 @@ write.csv2(merged_set_short,
 
 # Long set
 
-
 ## Import the long set
 merged_set_long <- create_count_set(directory, file_list_long, run_names_long)
 
@@ -92,8 +91,9 @@ merged_set_long <- merged_set_long %>%
   pivot_wider(id_cols = c("seq", "peptide_seq", "library"), names_from = "experiment", values_from = "count") %>%
   pivot_longer( cols = contains("gen5"), names_to = "condition", values_to = "gen5") %>% 
   relocate("condition", .after = 3) %>%
-  mutate(condition = str_extract(condition, "(?<=_)[^_]{3}(?=_)")) %>%
-  rename("gen1_lb_24" = "gen1")
+  mutate(condition = str_extract(condition, "(?<=_)[^_]{3}(?=_)")) %>% # Extrace the glu or ara in the condition name
+  rename("gen1_lb_24" = "gen1") %>% # shorten that column
+  filter(gen1 > 0 | gen5 > 0) # Remove lines that have no reads
 
 ## Compute ratios for each conditions 
 merged_set_long <- merged_set_long %>%
