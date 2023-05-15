@@ -53,7 +53,8 @@ compute_ratios <- function(df, count.cols = c(5:6), info.cols = c(3:4), compute_
   new_col_names <- paste0(col_names[count.cols],"_ratio")
   
   df <- df %>% 
-      group_by(across(all_of(col_names[info.cols]))) %>% # Group them by the columns used 
+      mutate(gen1 = gen1 + 0.1, gen5=gen5+0.1) %>% #adds a pseudocount
+       group_by(across(all_of(col_names[info.cols]))) %>% # Group them by the columns used 
       mutate(across(all_of(col_names[count.cols]), function(x){x/sum(x)}, .names = "{.col}_ratio")) %>% # Calculate a ratio for each column specified in count.cols
       ungroup() # Remove the grouping
       

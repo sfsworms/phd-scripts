@@ -26,7 +26,7 @@ source("../functions/function_analysis.R")
 
 #Work with a limited number of reads to get something I can work with easily.
 
-n = 10^5
+n = 5*10^9
 ```
 
 # Introduction
@@ -37,8 +37,7 @@ This is the analysis of the peptides from the drift experiment, looking the the 
 directory <- "C:/Users/worms/ngs_data/2022_06_07_drift_seq/90-666155004b/00_fastq/all_files"
 
 # Read a sample of the set
-count_set <- read.csv2(file = file.path(directory, "count_set_long.csv"),
-                       nrows = n)
+count_set <- read.csv2(file = file.path(directory, "count_set_long.csv"))
 
 # Take only NNK, induced peptides
 
@@ -48,6 +47,10 @@ count_set <- count_set %>%
 # Going to drop all the infinite enrichment ratio to NA
 count_set <- count_set %>%
   mutate(enrichment_ratio = ifelse(is.infinite(enrichment_ratio),NA,enrichment_ratio)) 
+
+# Drop the ones with sequences that don't fit
+count_set <- count_set %>%
+  filter(grepl("^TGC([ATGC][ATGC][GT]){7}$", seq)) 
 ```
 
 ## Sequence quality and reads distribution
@@ -59,6 +62,11 @@ unique_seq <- count_set %>%
   length()
 
 total_count <- count_set %>% select(gen1,gen5) %>% sum()
+
+unique_peptide <- count_set %>%
+  pull(standard_seq) %>%
+  unique() %>% 
+  length()
 
 ```
 
@@ -76,14 +84,32 @@ A cursory glance shows that those sequences that were enriched have high counts 
 
 ### Are common sequences in gen1 more likely to be selected?
 
-I would like to investigate whether the sequences with a higher counts in the first generation tends to be positively selected.
+I would like to investigate whether the sequences with a higher counts in the first generation tends have a higher ratio. One issue to be taken is sequences that aren't present in both generation of the drift as by disappearing they could skew my ratios. 
 
 ```{r }
-plot_init <- ggplot(count_set, aes(x = gen1_ratio, y = enrichment_ratio_log)) +
-  geom_point()
+plot_init <- ggplot(count_set %>% filter(gen1 > 0 & gen5 > 0), aes(y = gen1, x = enrichment_ratio_log)) +
+  geom_point(alpha = 0.05)
+
+plot_hist <- ggplot(count_set, aes(x = enrichment_ratio_log)) +
+  geom_histogram()
 
 plot_init %>% 
   print %>%
   suppressWarnings()
+
+
+plot_hist %>% 
+  print %>%
+  suppressWarnings()
+```
+
+If anything, the opposite is observed: sequences with a higher count in gen 1 have a lower enrichment ratio. The line appearance is likely due to the ratios you observe with 1 or 2 reads in gen5. That's slightly artefactual though. What's interesting is that a lot of the more highly enriched sequence also have gen1 counts. So that's compatible with the theory that they're pre-selected, even if most common gen1 sequences are common for random reasons and have negative fitness.
+
+```{r 'Adding a number of seq'}
+
+count_set <- count_set %>%
+  group_by(standard_seq) %>%
+  mutate(homonym_seq = n()) %>%
+  ungroup()
 ```
 

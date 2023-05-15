@@ -116,5 +116,5 @@ merged_set_long <- merged_set_long[sample(nrow(merged_set_long)), ]
 
 ## Write the set
 write.csv2(merged_set_long, 
-           file = file.path(dirname(directory), "count_set_long.csv"),
+           file = file.path(dirname(directory), "count_set_long_pseudocount.csv"),
            row.names = FALSE)
