@@ -20,13 +20,11 @@ knitr::opts_chunk$set(echo = FALSE, comment = '', fig.width = 6, fig.height = 6)
 library(tidyverse)
 library(knitr)
 library(ggplot2)
+library(xlsx)
 
 #Load some custom functions
 source("../functions/function_analysis.R")
 
-#Work with a limited number of reads to get something I can work with easily.
-
-n = 5*10^9
 ```
 
 # Introduction
@@ -37,20 +35,10 @@ This is the analysis of the peptides from the drift experiment, looking the the 
 directory <- "C:/Users/worms/ngs_data/2022_06_07_drift_seq/90-666155004b/00_fastq/all_files"
 
 # Read a sample of the set
-count_set <- read.csv2(file = file.path(directory, "count_set_long.csv"))
-
-# Take only NNK, induced peptides
-
-count_set <- count_set %>%
-  filter(library == "nnk" & condition == "induced")
-
-# Going to drop all the infinite enrichment ratio to NA
-count_set <- count_set %>%
-  mutate(enrichment_ratio = ifelse(is.infinite(enrichment_ratio),NA,enrichment_ratio)) 
-
-# Drop the ones with sequences that don't fit
-count_set <- count_set %>%
-  filter(grepl("^TGC([ATGC][ATGC][GT]){7}$", seq)) 
+count_set <- read.csv2(file = file.path(directory, "count_set_long.csv"))  %>%
+  filter(library == "nnk" & condition == "induced") %>% # Take only NNK, induced peptides
+  mutate(enrichment_ratio = ifelse(is.infinite(enrichment_ratio),NA,enrichment_ratio)) %>% # Going to drop all the infinite enrichment ratio to NA
+  filter(grepl("^TGC([ATGC][ATGC][GT]){7}$", seq)) # Drop the ones with sequences that don't fit
 ```
 
 ## Sequence quality and reads distribution
@@ -105,11 +93,133 @@ plot_hist %>%
 
 If anything, the opposite is observed: sequences with a higher count in gen 1 have a lower enrichment ratio. The line appearance is likely due to the ratios you observe with 1 or 2 reads in gen5. That's slightly artefactual though. What's interesting is that a lot of the more highly enriched sequence also have gen1 counts. So that's compatible with the theory that they're pre-selected, even if most common gen1 sequences are common for random reasons and have negative fitness.
 
+The weird spikes are due to the pseudocounts.
+
+## Homonyms sequence
+
 ```{r 'Adding a number of seq'}
 
 count_set <- count_set %>%
   group_by(standard_seq) %>%
   mutate(homonym_seq = n()) %>%
   ungroup()
+
+multiple_seq <- count_set %>%
+  filter(homonym_seq > 1) %>%
+  pull(standard_seq) %>%
+  unique() %>%
+  length()
+```
+
+
+
+One good sign that a signal is real is if it's observed in multiple sequence. We compute a 'standard sequence' from the peptide sequence to account for cyclization. The very large size of potential octamers means only a relatively small numbers of peptides are encoded by multiple genes = `r multiple_seq` out of `r unique_peptide`.
+
+We can look at those, but we're limiting ourselves to a small subset of peptides.
+
+## Homonyms with stop codons
+
+One prediction is that peptides with stop codons should show lower correlation between synonymous sequence as the peptide isn't expressed. Let's see.
+
+```{r 'Synonymous peptides with stop codons'}
+ratio_list <- count_set %>%
+  filter(homonym_seq > 1) %>%
+  get_enrichment_list()
+
+ratio_list_stop <- count_set %>%
+  filter(homonym_seq > 1) %>%
+  filter(!is.infinite(enrichment_ratio_log)) %>%
+  filter(grepl("\\*", standard_seq)) %>%
+  get_enrichment_list()
+
+ratio_list_no_stop <- count_set %>%
+  filter(homonym_seq > 1) %>%
+  filter(!is.infinite(enrichment_ratio_log)) %>%
+  filter(!grepl("\\*", standard_seq)) %>%
+  get_enrichment_list()
+
+cor(ratio_list$X1, ratio_list$X2)
+cor(ratio_list_stop$X1, ratio_list_stop$X2)
+cor(ratio_list_no_stop$X1, ratio_list_no_stop$X2)
+
+df_cor_ratios <- data.frame(has_stops = logical(),
+                            X1 = double(),
+                            X2 = double())
+
+
+ratio_list_stop <- ratio_list_stop %>%
+  data.frame() %>%
+  mutate(has_stops = TRUE)
+
+ratio_list_no_stop <- ratio_list_no_stop %>%
+  data.frame() %>%
+  mutate(has_stops = FALSE)
+
+df_cor_ratios <- rbind(df_cor_ratios, ratio_list_stop, ratio_list_no_stop)
+
+plot_corr_stops <- ggplot(data = df_cor_ratios, aes(x = X1, y = X2)) +
+  geom_point(alpha = 0.05) +
+  labs(title = "Correlation between the enrichment ratios of sequences encoding for the same peptide sequence") +
+  xlab("Enrichment ratio 1") +
+  ylab("Enrichment ratio 2") +
+  geom_smooth(method = lm, se = FALSE) +
+  facet_grid(~ has_stops)
+
+print(plot_corr_stops) %>% suppressWarnings()
+```
+
+Correlation is still pretty positive. Could it be that the issues is that when there some of the very low reads are just misread of common ones (or mutation?)
+
+Related idea: is the %age of multiple reads in the ballpark of what we'd expect?
+
+## Let's look at the top sequences with confirmation
+
+```{r 'Ordering sequence'}
+count_set_multiple <- count_set %>%
+  filter(homonym_seq >= 3) %>%
+  arrange(desc(standard_seq))
+
+count_set_multiple %>% head()
+
+count_set_multiple <- count_set_multiple %>% 
+  group_by(standard_seq) %>%
+  mutate(average_enrich_ratio = psych::geometric.mean(enrichment_ratio))
+
+count_set_multiple %>% arrange(desc(average_enrich_ratio)) %>% head(n = 100) %>% select(1,2,3,6,7,10,13)
+
+
+#Going to check that the pseudocount don't interfere with correlation
+test <- get_enrichment_list(count_set)
+# Correlation is actually better than when we don't take in the counts with zeroes.
+cor(test$X1,test$X2)
+
+plot_cor <- ggplot(data= test, aes(x=X1, y=X2)) +
+  geom_point(alpha= 0.05) +
+  geom_smooth(method = "lm", se = FALSE)
+
+plot_cor %>% print()
+
+#Generally decent!
+```
+
+The correlation with pseudocounts is quite good! Not perfect of course, but you have a real, repreated decrese or increase.
+
+
+```{r 'running DESeq{}}
+count_set_no_inf <- count_set_no_inf %>%
+  group_by(standard_seq) %>%
+  mutate(average_enrich_ratio = psych::geometric.mean(enrichment_ratio)) %>%
+  ungroup()
+
+count_set_no_inf %>% arrange(standard_seq) %>% arrange(average_enrich_ratio) %>% arrange(desc(homonym_seq)) %>% select(c(1,2,6,7,10,12, 13))
+
+write.csv2(count_set_no_inf, file=file.path(directory,"count_set_no_inf"), row.names = FALSE)
+write.csv(count_set_no_inf, file=file.path(directory,"count_set_no_inf"), row.names = FALSE)
+
+dif_from_max <- function(df){
+  max_read <- df %>% pull(gen1) %>% max()
+  commonest_seq <- df %>% filter(gen1 == max_read) %>% pull()
+  
+}
 ```
 
