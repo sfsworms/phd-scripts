@@ -20,7 +20,10 @@ knitr::opts_chunk$set(echo = FALSE, comment = '', fig.width = 6, fig.height = 6)
 library(tidyverse)
 library(knitr)
 library(ggplot2)
-library(xlsx)
+library(Peptides)
+library(writexl)
+library(gridExtra) # To align multiple plots
+library(readxl) # Read excel files
 
 #Load some custom functions
 source("../functions/function_analysis.R")
@@ -29,13 +32,13 @@ source("../functions/function_analysis.R")
 
 # Introduction
 
-This is the analysis of the peptides from the drift experiment, looking the the induced, NNK8 file, the only one that showed correlation between synonymous sequence. The required datasets were created in the "peptide_analysis.R" file. I'm going to do it on a subset of of `r print(n_reads)` reads for now. The encoding of enrichment ratio is 'NA' in cases where no reads were present in the first generation and some in the fifth (giving an 'infinite' enrichment ratio).
+This is the analysis of the peptides from the drift experiment, looking the the induced, NNK8 file, the only one that showed correlation between synonymous sequence. The required datasets were created in the "peptide_analysis.R" file. The encoding of enrichment ratio is 'NA' in cases where no reads were present in the first generation and some in the fifth (giving an 'infinite' enrichment ratio).
 
 ```{r 'load datasets', echo=FALSE}
 directory <- "C:/Users/worms/ngs_data/2022_06_07_drift_seq/90-666155004b/00_fastq/all_files"
 
 # Read a sample of the set
-count_set <- read.csv2(file = file.path(directory, "count_set_long.csv"))  %>%
+count_set <- read.csv2(file = file.path(directory, "count_set_params.csv"))  %>%
   filter(library == "nnk" & condition == "induced") %>% # Take only NNK, induced peptides
   mutate(enrichment_ratio = ifelse(is.infinite(enrichment_ratio),NA,enrichment_ratio)) %>% # Going to drop all the infinite enrichment ratio to NA
   filter(grepl("^TGC([ATGC][ATGC][GT]){7}$", seq)) # Drop the ones with sequences that don't fit
@@ -99,10 +102,11 @@ The weird spikes are due to the pseudocounts.
 
 ```{r 'Adding a number of seq'}
 
-count_set <- count_set %>%
-  group_by(standard_seq) %>%
-  mutate(homonym_seq = n()) %>%
-  ungroup()
+# count_set <- count_set %>%
+#   group_by(standard_seq) %>%
+#   mutate(homonym_seq = n()) %>%
+#   mutate(average_enrich_ratio = psych::geometric.mean(enrichment_ratio)) %>%
+#   ungroup()
 
 multiple_seq <- count_set %>%
   filter(homonym_seq > 1) %>%
@@ -170,8 +174,6 @@ print(plot_corr_stops) %>% suppressWarnings()
 
 Correlation is still pretty positive. Could it be that the issues is that when there some of the very low reads are just misread of common ones (or mutation?)
 
-Related idea: is the %age of multiple reads in the ballpark of what we'd expect?
-
 ## Let's look at the top sequences with confirmation
 
 ```{r 'Ordering sequence'}
@@ -179,21 +181,16 @@ count_set_multiple <- count_set %>%
   filter(homonym_seq >= 3) %>%
   arrange(desc(standard_seq))
 
-count_set_multiple %>% head()
-
-count_set_multiple <- count_set_multiple %>% 
-  group_by(standard_seq) %>%
-  mutate(average_enrich_ratio = psych::geometric.mean(enrichment_ratio))
-
 count_set_multiple %>% arrange(desc(average_enrich_ratio)) %>% head(n = 100) %>% select(1,2,3,6,7,10,13)
 
 
 #Going to check that the pseudocount don't interfere with correlation
-test <- get_enrichment_list(count_set)
+cor_count_set_no_peud <- get_enrichment_list(count_set %>%
+                                               filter(gen1 > 0.5 & gen5 > 0.5))
 # Correlation is actually better than when we don't take in the counts with zeroes.
-cor(test$X1,test$X2)
+cor(cor_count_set_no_peud$X1,cor_count_set_no_peud$X2)
 
-plot_cor <- ggplot(data= test, aes(x=X1, y=X2)) +
+plot_cor <- ggplot(data= cor_count_set_no_peud, aes(x=X1, y=X2)) +
   geom_point(alpha= 0.05) +
   geom_smooth(method = "lm", se = FALSE)
 
@@ -202,24 +199,104 @@ plot_cor %>% print()
 #Generally decent!
 ```
 
-The correlation with pseudocounts is quite good! Not perfect of course, but you have a real, repreated decrese or increase.
+The correlation with pseudocounts is quite good! Not perfect of course, but you have a real, repeated, correlated decrease or increase.
 
 
-```{r 'running DESeq{}}
-count_set_no_inf <- count_set_no_inf %>%
-  group_by(standard_seq) %>%
-  mutate(average_enrich_ratio = psych::geometric.mean(enrichment_ratio)) %>%
-  ungroup()
+```{r 'Adding logP and charge'}
+# #Using the peptide package to add estimates of hydrophobicity and charge and some other parameters
+# count_set <- count_set %>%
+#   mutate(hydrophob = hydrophobicity(standard_seq)) %>%
+#   mutate(charge = charge(standard_seq)) %>%
+#   mutate(pi = pI(standard_seq)) %>%
+#   mutate(aindex = aIndex(standard_seq)) %>%
+#   mutate(boman = boman(standard_seq))
+# 
+# # write.csv2(count_set, file= file.path(directory,"count_set_params.csv"))
+# count_set <- read.csv2(file.path(directory,"count_set_params.csv"), row.names = FALSE)
+```
 
-count_set_no_inf %>% arrange(standard_seq) %>% arrange(average_enrich_ratio) %>% arrange(desc(homonym_seq)) %>% select(c(1,2,6,7,10,12, 13))
 
-write.csv2(count_set_no_inf, file=file.path(directory,"count_set_no_inf"), row.names = FALSE)
-write.csv(count_set_no_inf, file=file.path(directory,"count_set_no_inf"), row.names = FALSE)
 
-dif_from_max <- function(df){
-  max_read <- df %>% pull(gen1) %>% max()
-  commonest_seq <- df %>% filter(gen1 == max_read) %>% pull()
-  
-}
+```{r}
+peptide_candidate <- count_set %>%
+  filter(!grepl('\\*', standard_seq)) %>%
+  filter(homonym_seq > 2) %>%
+  pull(standard_seq) %>%
+  unique() %>%
+  length()
+
+count_set_candidate <- count_set %>%
+  filter(!grepl('\\*', standard_seq)) %>%
+  filter(homonym_seq > 2) %>%
+  arrange(standard_seq) %>%
+  arrange(desc(average_enrich_ratio))
+
+
+# write_xlsx(count_set_candidate, file.path(directory,"candidate_peptides.xlsx"))
+```
+
+## Charge, pI, aliphatic index, hydrophobicity
+
+None of those characteristics seems to show a clear correlation with enrichment.
+
+
+```{r 'Looking at hydrophobicity'}
+count_set_sample <- count_set[sample(1:nrow(count_set), 100000, replace=FALSE),]
+
+p1 <- ggplot(data = count_set_sample, aes(x = hydrophob, y = enrichment_ratio_log)) +
+  geom_point(alpha = 0.05) +
+  geom_smooth(method = "lm", se = TRUE)
+
+p2 <-ggplot(data = count_set_sample, aes(x = pi, y = enrichment_ratio_log)) +
+  geom_point(alpha = 0.05) +
+  geom_smooth(method = "lm", se = TRUE)
+
+p3 <-ggplot(data = count_set_sample, aes(x = charge, y = enrichment_ratio_log)) +
+  geom_point(alpha = 0.05) +
+  geom_smooth(method = "lm", se = TRUE)
+
+p4 <-ggplot(data = count_set_sample, aes(x = aindex, y = enrichment_ratio_log)) +
+  geom_point(alpha = 0.05) +
+  geom_smooth(method = "lm", se = TRUE)
+
+p5 <-ggplot(data = count_set_sample, aes(x = boman, y = enrichment_ratio_log)) +
+  geom_point(alpha = 0.05) +
+  geom_smooth(method = "lm", se = TRUE)
+
+grid.arrange(p1, p2, p3, p4, p5, ncol = 2)
+```
+
+## Presence of RR
+
+While they're both purged, we seem to have a slightly lower enrichment ratio for peptides without RR motifs, although with a lot of overlap. Should be noted that this only holds with one single RR, not two. 
+
+```{r}
+count_set <- count_set %>%
+  mutate(RR = grepl(pattern = "RR", x = standard_seq))
+
+count_set <- count_set %>%
+  mutate(Rcount =  str_count(standard_seq, "RR")) %>%
+  mutate(Rcount = as.factor(Rcount))
+
+p7 <- ggplot(data = count_set, aes(x = Rcount, y = enrichment_ratio_log)) +
+  geom_violin() +
+  xlab("Peptide containing RR motifs") +
+  ylab("Log2 of the enrichment ratio")
+
+p7
+
+stat_test <- t.test(x = count_set %>% filter(RR == TRUE) %>% pull(enrichment_ratio_log),
+       y = count_set %>% filter(RR == FALSE) %>% pull(enrichment_ratio_log))
+
+anova_test <- aov(enrichment_ratio_log ~ Rcount, data = count_set)
+
+shapiro.test(count_set[1:5000,]$enrichment_ratio_log)
+bartlett.test(enrichment_ratio_log ~ Rcount, data = count_set)
+
+mean_values2 <- aggregate(enrichment_ratio_log ~ Rcount, data = count_set, geometric.mean)
+
+```
+```{r}
+count_set %>% select(c(Rcount,enrichment_ratio_log)) %>% group_by(Rcount) %>% lapply(. %>% pull(enrichment_ratio_log),psych::geometric.mean())
 ```
 
