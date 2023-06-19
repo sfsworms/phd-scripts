@@ -7,7 +7,7 @@ library(openxlsx)  #USed to write the tidy data to
 
 library(platetools)  #Needed to play with plates a bit more easily
 
-folder.loc <- "C:/Users/worms/Dropbox/PhD/Data/Tecan/2022.05.27 Test peptide marker"
+folder.loc <- "C:/Users/worms/Dropbox/data/tecan/2023.06.17_test_select_peptides"
 
 get_data_tecan <- function(folder_loc = folder.loc, tecan_file_name = "tecan.xlsx") {
   
@@ -62,9 +62,9 @@ get_data_tecan <- function(folder_loc = folder.loc, tecan_file_name = "tecan.xls
 ## tecan_data
 
 add_well_name <- function(data = tecan_data, folder_loc = folder.loc){
-  
-well.name <- data.frame(wellID = num_to_well(1:96, plate = 96) %>%
-                          gsub("0", "", .), 
+
+well_name <- data.frame(wellID = num_to_well(1:96, plate = 96) %>%
+                          sub("^([A-H])0+", "\\1", .), 
                         wellName = paste(folder_loc, "plate.xlsx", sep = "/") %>%
                           read.xlsx(., colNames = FALSE) %>%
                           as.matrix() %>%
@@ -72,10 +72,10 @@ well.name <- data.frame(wellID = num_to_well(1:96, plate = 96) %>%
                           as.list() %>%
                           unlist())
 
-well.name <- well.name %>% # 'X' indicate an empty well
+well_name <- well_name %>% # 'X' indicate an empty well
   filter(toupper(wellName) != "X")
 
-data <- left_join(data, well.name, by = "wellID")
+data <- left_join(data, well_name, by = "wellID")
 
 return(data)
 }
@@ -83,7 +83,7 @@ return(data)
 ## This function just go and get the experimental details from an experiment.xlsx file
 
 add_experiment_details <- function(data= tecan_data, folder_loc = folder.loc){
-  experiment.details <- paste(folder.loc, "experiment.xlsx", sep="/") %>%
+  experiment.details <- paste(folder_loc, "experiment.xlsx", sep="/") %>%
     read.xlsx()
   
   data <- left_join(data, experiment.details, by = "wellName")
