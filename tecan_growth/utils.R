@@ -86,3 +86,64 @@ add_experiment_details <- function(data= tecan_data, folder_loc = folder.loc){
   data <- left_join(data, experiment.details, by = "wellName")
   return(data)
 }
+
+blanking_tecan_data <- function(tecan_data){
+  # Check if the data frame is a data frame
+  if(!is.data.frame(tecan_data)){
+    stop("The argument of the function needs to be a data frame.")
+  }
+  
+  # First I need to check that the blank wells aren't growing
+  blank_wells <- tecan_data %>%
+    filter(wellName == "blank")
+  
+  # If there are no blanck wells, throw an error
+  if(!(blank_wells %>% nrow())){
+    stop("No blank well found. Are you sure they are labelled 'blank'")
+  }
+  
+  # # Check that the blank wells aren't growing. I put a cutoff at 20%
+  # min_blank <- blank_wells %>% pull(OD) %>% min()
+  # max_blank <- blank_wells %>% pull(OD) %>% max()
+  # if((max_blank/min_blank) > 1.2){
+  #   stop("The blank wells are growing more than 20% over the time frame.")
+  #}
+  
+  # I'm going to average the blanks, then substract the appropriate blank from each of the OD.
+
+  # Keep only the relevant data for blank wells
+  blank_wells <- blank_wells %>%
+    select(c("cycle", "time", "wellID", "OD"))
+  
+  # Shift to a wider format
+  blank_wells <- blank_wells %>%
+    pivot_wider(names_from = wellID, values_from = OD)
+  
+  # Compute the average OD and drop the unneeded columns
+  
+  blank_wells <- blank_wells %>%
+    rowwise() %>%
+    mutate(avg_blank = mean(c_across(3:ncol(blank_wells)))) %>%
+    select(cycle, avg_blank)
+  
+  # Add the column to the tecan_data, correct OD by substracting blank, drop the blank wells and column.
+  
+  tecan_data <- full_join(tecan_data, blank_wells, by = "cycle") 
+
+  tecan_data <- tecan_data %>%
+    mutate(OD = OD - avg_blank) %>%
+    select(-avg_blank) %>%
+    filter(wellName != "blank")
+  
+  
+  return(tecan_data)
+}
+
+
+tecan_data <- tecan_data %>%
+  select(-10)
+
+
+test <- tecan_data %>%
+   mutate(wellName = gsub(pattern = "EP1A Glu", replacement = "blank", wellName)) %>%
+  mutate(wellName = substr(wellName,1,5))
