@@ -138,12 +138,3 @@ blanking_tecan_data <- function(tecan_data){
   
   return(tecan_data)
 }
-
-
-tecan_data <- tecan_data %>%
-  select(-10)
-
-
-test <- tecan_data %>%
-   mutate(wellName = gsub(pattern = "EP1A Glu", replacement = "blank", wellName)) %>%
-  mutate(wellName = substr(wellName,1,5))
