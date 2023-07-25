@@ -72,7 +72,7 @@ add_well_name <- function(data = tecan_data, folder_loc = folder.loc){
   well_name <- well_name %>% # 'X' indicate an empty well
     filter(toupper(wellName) != "X")
   
-  data <- left_join(data, well_name, by = "wellID")
+  data <- inner_join(data, well_name, by = "wellID")
   
   return(data)
 }
