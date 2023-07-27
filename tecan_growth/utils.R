@@ -102,16 +102,6 @@ blanking_tecan_data <- function(tecan_data){
     stop("No blank well found. Are you sure they are labelled 'blank'")
   }
   
-  # # Check that the blank wells aren't growing. I put a cutoff at 20%
-  # min_blank <- blank_wells %>% pull(OD) %>% min()
-  # max_blank <- blank_wells %>% pull(OD) %>% max()
-  # if((max_blank/min_blank) > 1.2){
-  #   stop("The blank wells are growing more than 20% over the time frame.")
-  #}
-  
-  # I'm going to average the blanks, then substract the appropriate blank from each of the OD.
-
-  # Keep only the relevant data for blank wells
   blank_wells <- blank_wells %>%
     select(c("cycle", "time", "wellID", "OD"))
   
@@ -121,14 +111,14 @@ blanking_tecan_data <- function(tecan_data){
   
   # Compute the average OD and drop the unneeded columns
   
-  blank_wells <- blank_wells %>%
-    rowwise() %>%
-    mutate(avg_blank = mean(c_across(3:ncol(blank_wells)))) %>%
-    select(cycle, avg_blank)
+  blank_avg <- tecan_data %>%
+    filter(wellName == "blank") %>%
+    group_by(cycle) %>%
+    summarise(avg_OD = mean(OD, na.rm = TRUE))
   
   # Add the column to the tecan_data, correct OD by substracting blank, drop the blank wells and column.
   
-  tecan_data <- full_join(tecan_data, blank_wells, by = "cycle") 
+  tecan_data <- left_join(tecan_data, blank_avg, by = "cycle") 
 
   tecan_data <- tecan_data %>%
     mutate(OD = OD - avg_blank) %>%
