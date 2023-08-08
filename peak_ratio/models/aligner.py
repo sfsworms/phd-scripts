@@ -10,8 +10,8 @@ GAP_SCORE = -5
 class LocalAlignment(Align.PairwiseAligner):
     """PairwiseAligner pour alignement local."""
     def __init__(self, mode=MODE, match_score=MATCH_SCORE, mismatch_score=MISMATCH_SCORE, gap_score=GAP_SCORE):
-        super().__init__()
-        self.mode = mode
+        super().__init__() # Calls the __init__ method of the parent class (PairwiseAligner) good practice to do it first before the child class __init__ is performed
+        self.mode = mode # Define default attributes or data
         self.match_score = match_score
         self.mismatch_score = mismatch_score
         self.gap_score = gap_score
@@ -28,18 +28,18 @@ class LocalAlignment(Align.PairwiseAligner):
             Alignement de deux séquences sous la forme d'un objet Bio.Align.PairwiseAlignment.
 
         """
-        score = self.score(template, query, "+")
-        score_reverse = self.score(template, query, "-")
+        score = self.score(template, query)
+        score_reverse = self.score(template, query.reverse_complement())
         if score > score_reverse:
-            alignment = super().align(template, query, "+")[0]
+            alignment = super().align(template, query)[0]
         else:
-            alignment = super().align(template, query, "-")[0]
+            alignment = super().align(template, query.reverse_complement())[0]
         return alignment
 
     def get_strand(self, template, query):
         """Renvoie le sens du read."""
-        score = self.score(template, query, "+")
-        score_reverse = self.score(template, query, "-")
+        score = self.score(template, query)
+        score_reverse = self.score(template, query.reverse_complement())
         if score > score_reverse:
             return "+"
         else:

@@ -1,4 +1,4 @@
-from controller2 import Controller
+from controller import Controller
 
 
 if __name__ == '__main__':
