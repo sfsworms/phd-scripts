@@ -1,3 +1,11 @@
+"""
+Edited on Tue Aug  8 22:24:48 2023
+
+@author: worms
+
+This section contains code to make a list of the ab1 files in a folder and read the sequences using SeqIO.read, this leaves all the info that were in the ab1 file.
+"""
+
 import os
 import glob
 import numpy as np
@@ -135,21 +143,22 @@ class Read:
             locations.append(location - (self.template_aligned[index][0] - self.read_aligned[index][0]))
         return locations
 
+# The Reads class has for a goal to get all the ab1 files from a folder, read the sequences using SeqIO and make a list with the sequences and filename
 
-class Reads(list):
+class Reads(list): # Inehrit from the list class
     def __init__(self, root_dir=None):
-        super().__init__()
+        super().__init__() # Init with the above class
         if root_dir is not None:
-            self.directory = root_dir + os.sep
+            self.directory = root_dir + os.sep # If root dir exists, add a directory attribute with the directory
         else:
             self.directory = ""
-        self.files = sorted(glob.glob(pathname=GENERIC_FILE_AB1, root_dir=root_dir))
+        self.files = sorted(glob.glob(pathname=GENERIC_FILE_AB1, root_dir=root_dir)) # Make a sorted list of all the ab1 files in the root_dir. the constant encodes  '*.ab1"
         self.create_reads()
 
     def create_reads(self):
-        # Créer les objets Read() si la liste est vide
-        if not self:
+        # create read objects if the list is empty
+        if not self: # Commonly used in python to check if lists are empty
             for file in self.files:
                 path = self.directory + file
-                record = SeqIO.read(path, TYPE_AB1)
-                self.append(Read(record=record, filename=file))
+                record = SeqIO.read(path, TYPE_AB1) # With type ab1 this has all the ab1 info including the chromatogram
+                self.append(Read(record=record, filename=file)) # Add the read reacord with the filename

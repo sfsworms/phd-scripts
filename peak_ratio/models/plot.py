@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import os
 
 # Constants for plotting
 MAX_HEIGHT = 2500
@@ -47,8 +48,12 @@ def chromatogram(sample, read, ylim):
     ax.get_xticklabels()[BASE_RANGE].set_color("red")
     # Adjust the layout for optimal display
     plt.tight_layout()
+    # Check if the "plot" subfolder exists, if not create it
+    if not os.path.exists('plot'):
+        os.makedirs('plot')
     # Save the plot to a file with the read's name
-    plt.savefig(fname=read.name+r'.png', dpi=RESOLUTION_DPI, format=FORMAT_FILE)
+    plt.savefig(fname=os.path.join('plot', read.name + '.png'), dpi=RESOLUTION_DPI, format=FORMAT_FILE)
+
     # Close the plot
     plt.close()
 

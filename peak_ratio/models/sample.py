@@ -1,11 +1,26 @@
+"""
+Commented on 09/08/2023
+
+Sample is a storage class to store the details associated with each samples ( template, standards...)
+Sampling gets the values for the lines of the ab1 files names in an excel file
+Samples store a seried of values in a pd data frame
+Excel gets the data needed for outputting in an excel file
+    create creates the excel files using the data in Excel
+
+@author: worms
+"""
+
+
 import pandas as pd
 import xlsxwriter
 import glob
 
+# Loads of constant used to name the files with the sample information
 
 EXCEL_FILENAME = "samples.xlsx"
 WIDTH_COLUMN = 30
 
+# Constants defining column headers in the Excel file
 SAMPLE_ABI_FILES = "SAMPLE_ABI_FILES"
 SAMPLE_TEMPLATE_1 = "FASTA_1"
 SAMPLE_TEMPLATE_2 = "FASTA_2"
@@ -18,8 +33,9 @@ SAMPLES_COLUMN = "SAMPLES"
 VARIANT_1_COLUMN = "VARIANT 1"
 VARIANT_2_COLUMN = "VARIANT 2"
 
-
+# Sample class encapsulates the details of each sample
 class Sample:  # TODO à repenser => mettre dans la classe samples sous forme d'objet?
+    # Storing the provided attributes for each sample
     def __init__(self, read, template_1, template_2, standard_1, standard_2):
         self.read = read
         self.template_1 = template_1
@@ -28,45 +44,56 @@ class Sample:  # TODO à repenser => mettre dans la classe samples sous forme d'
         self.standard_2 = standard_2
         self.sample_locations = []
 
+    # Sets the strand direction for reads and standards based on alignment
+    # Aligning all of those on the templates let us pick positions at the right place
     def set_strands(self, aligner):
         self.read.set_strand(aligner=aligner, template=self.template_1)
         self.standard_1.set_strand(aligner=aligner, template=self.template_1)
         self.standard_2.set_strand(aligner=aligner, template=self.template_2)
 
+    # Extracts the traces for reads and standards
     def extract_traces(self):
         self.read.extract_trace()
         self.standard_1.extract_trace()
         self.standard_2.extract_trace()
-
+    
+    # Sets the length of sequences for reads and standards
     def set_length_sequences(self):
         self.read.set_length_sequence()
         self.standard_1.set_length_sequence()
         self.standard_2.set_length_sequence()
 
+    # Aligns the reads and standards with their respective templates
     def set_alignments(self, aligner):
         self.read.set_alignment(aligner=aligner, template=self.template_1)
         self.standard_1.set_alignment(aligner=aligner, template=self.template_1)
         self.standard_2.set_alignment(aligner=aligner, template=self.template_2)
 
+    # Identifies and stores the locations of mutations between templates
     def set_sample_locations(self):
-        # Ne fais rien si des valeurs sont présentes
+        # Don't do anything if values already exist
         if len(self.sample_locations) != 0:
             return
-        # self.mutation_locations = mutations entre les templates
+        # Identify mutation locations by comparing templates this gives a list of
+        # mutation position
         for index in range(self.template_1.length):
             if self.template_1.sequence[index] != self.template_2.sequence[index]:
                 self.sample_locations.append(index)
 
-
+# Sampling class handles reading and extracting sample information from an Excel file
 class Sampling:
     def __init__(self):
         self.filename = EXCEL_FILENAME
+        # Read the Excel file into a pandas DataFrame
         self.df = pd.read_excel(io=self.filename)
+        # Extract list of sample files
         self.samples_files = self.get_sample_files()
 
+    # Extracts a list of sample files from the DataFrame from the excel column specified
     def get_sample_files(self):
         return self.df[SAMPLE_ABI_FILES].tolist()
 
+    # Gets the values for each lane
     def get_value(self, sample, channel):
         return self.df[self.df[SAMPLE_ABI_FILES] == sample][channel].values[0]
 
@@ -90,6 +117,7 @@ class Sampling:
         filename = self.get_value(sample=sample, channel=SAMPLE_STANDARD_2)
         return list(filter(lambda obj: obj.filename == filename, standards))[0]
 
+    # Constructs a list of Sample objects based on the data read from the Excel file
     def get_samples_from_sampling(self, reads, standards, templates):
         samples = []
         for sample in self.samples_files:
@@ -105,6 +133,7 @@ class Sampling:
                                   standard_2=standard_2))
         return samples
 
+    # Extracts condition names, which are headers not included in the predefined SAMPLING_CHANNELS list
     def get_condition_names(self):
         headers = self.df.columns.tolist()
         for channel in SAMPLING_CHANNELS:
@@ -112,7 +141,8 @@ class Sampling:
         return headers
 
 
-class Samples(pd.DataFrame):
+# Extends pandas DataFrame to create a specialized DataFrame for storing and processing samples
+class Samples(pd.DataFrame): # Samples inherit from data frame class
     def __init__(self, sampling: Sampling, reads, standards, templates):
         super().__init__()
         self[SAMPLES_COLUMN] = sampling.get_samples_from_sampling(reads=reads,
@@ -120,15 +150,18 @@ class Samples(pd.DataFrame):
                                                                   templates=templates)
         self.add_variants(sampling=sampling)
         self.add_conditions(sampling=sampling)
-
+        
+    # This just seems to create a variant columns that copies from "SAMPLE_TEMPLATE3
     def add_variants(self, sampling):
         self[VARIANT_1_COLUMN] = sampling.df[SAMPLE_TEMPLATE_1]
         self[VARIANT_2_COLUMN] = sampling.df[SAMPLE_TEMPLATE_2]
 
+    #Add conditions to the DF if they are presets.
     def add_conditions(self, sampling):
         for condition in sampling.get_condition_names():
             self[condition] = sampling.df[condition]
 
+    #For each sample in the list, gets the alignment, traces, sequence length and alignment
     def set_reads(self, aligner):
         for sample in self[SAMPLES_COLUMN]:
             sample.set_strands(aligner=aligner)
@@ -136,6 +169,7 @@ class Samples(pd.DataFrame):
             sample.set_length_sequences()
             sample.set_alignments(aligner=aligner)
 
+    #Identify the locations
     def set_locations(self):
         for sample in self[SAMPLES_COLUMN]:
             sample.set_sample_locations()
@@ -161,22 +195,25 @@ class Samples(pd.DataFrame):
                 return True
         return False
 
-
+# Excel class handles creation and management of Excel files
 class Excel:
     def __init__(self, reads, templates, standards):
         self.filename = EXCEL_FILENAME
+        # Storing file and name lists for reads, templates, and standards
         self.abi_files = reads.files
         self.template_names = templates.names
         self.standards_files = standards.files
 
+    # Checks if an Excel file already exists
     def excel_file_exist(self):
+        # Returns None if no file found, True otherwise
         if not glob.glob(self.filename):
             return None
         else:
             return True
-
+    # Creates a new Excel file with pre-defined structure
     def create(self):  # TODO fonctionnel mais à formater
-        workbook = xlsxwriter.Workbook(self.filename)
+        workbook = xlsxwriter.Workbook(self.filename) # Gets the name needed
         worksheet = workbook.add_worksheet()
         # Add a bold format to use to highlight cells.
         bold = workbook.add_format({'bold': True})
@@ -185,7 +222,7 @@ class Excel:
             # SAMPLING_CHANNELS = headers
             worksheet.write(0, column, header, bold)
 
-            # SAMPLE_ABI_FILES
+            # SAMPLE_ABI_FILES Make a row for eahc abi files
             if header == SAMPLE_ABI_FILES:
                 for row, abi_file in enumerate(self.abi_files):
                     worksheet.write(row+1, column, abi_file)

@@ -2,7 +2,13 @@ import os
 import glob
 
 from Bio import SeqIO
+"""
+Commented on Tue Aug  8 22:24:48 2023
 
+This file is similar to the ab1. It reads all the fasta files in 
+
+@author: worms
+"""
 
 TYPE_FASTA = "fasta"
 GENERIC_FILE_FASTA = "*.fasta"
@@ -16,8 +22,8 @@ class Template:
         self.length = len(self.sequence)
 
 
-class Templates(list):
-    def __init__(self, root_dir=None):
+class Templates(list): #Inherit from list
+    def __init__(self, root_dir=None): # root_dir is assigned None per default
         super().__init__()
         if root_dir is not None:
             self.directory = root_dir + os.sep
@@ -28,11 +34,11 @@ class Templates(list):
         self.names = self.get_names()
 
     def create_templates(self):
-        # Créer les objets Template() si la liste est vide
+        #Creat  template objects if the list is empty
         if not self:
             for file in self.files:
                 path = self.directory + file
-                for record in SeqIO.parse(path, TYPE_FASTA):
+                for record in SeqIO.parse(path, TYPE_FASTA): # SeqIO parse creates an iterator so we can read all the sequences in the multipart fasta
                     self.append(Template(record=record, filename=file))
 
     def get_names(self):

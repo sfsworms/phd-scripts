@@ -12,11 +12,12 @@ class Controller:
         self.running = True 
         
         # Initializing lists for reads and standards from ABI files and templates from FASTA files.
-        self.reads: list = Reads(root_dir="abi")
-        self.standards: list = Reads(root_dir="standards")
-        self.templates: list = Templates(root_dir="fasta")
+        self.reads: list = Reads(root_dir="abi") #Get the ab1 files of the reads in "abi"
+        self.standards: list = Reads(root_dir="standards") # Get the ab1 files of the standards in "standards"
+        self.templates: list = Templates(root_dir="fasta") # Get the templates sequences from the fasta. I *think* those are needed
 
-        # Create or check for an Excel file that seems to be used for sampling.
+        # Check for an Excel file that has sequence info, or prompt the user to create on (see def block)
+        # It gives an excel file with samples (ab1), fasta1, fasta2, standard1 and standard2
         self.create_excel_file()
         
         # Create objects for sampling, alignment, and samples.
