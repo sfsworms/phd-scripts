@@ -29,7 +29,7 @@ PLOC = "PLOC1"
 PBAS = "PBAS1"
 ABI_CHANNELS = [DATA9, DATA10, DATA11, DATA12, PLOC, PBAS]
 
-
+# This class is there to store the info existing in a .ab1 file and some related info. It takes a record produced by seqIO and a file name
 class Read:
     def __init__(self, record, filename):
         self.filename = filename

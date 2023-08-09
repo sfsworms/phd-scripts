@@ -21,3 +21,6 @@ def show_samples(df):
 
 def fill_sample_file(file):
     input(f'Please fill the {file} file and press enter to continue.')
+    
+def error_read_quality(read):
+    print(f"{read} is of low quality (Only 'N'), please check the ab1 file and remove if sequencing failed.")

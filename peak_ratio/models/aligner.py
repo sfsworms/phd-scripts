@@ -6,13 +6,13 @@ MATCH_SCORE = 1.0
 MISMATCH_SCORE = -2.0
 GAP_SCORE = -5
 
-
+# Inherit its class from PairWiseAligner
 class LocalAlignment(Align.PairwiseAligner):
     """PairwiseAligner pour alignement local."""
     def __init__(self, mode=MODE, match_score=MATCH_SCORE, mismatch_score=MISMATCH_SCORE, gap_score=GAP_SCORE):
         super().__init__() # Calls the __init__ method of the parent class (PairwiseAligner) good practice to do it first before the child class __init__ is performed
-        self.mode = mode # Define default attributes or data
-        self.match_score = match_score
+        self.mode = mode # Define default attributes or data, here only local
+        self.match_score = match_score # Score set above
         self.mismatch_score = mismatch_score
         self.gap_score = gap_score
 
@@ -29,7 +29,12 @@ class LocalAlignment(Align.PairwiseAligner):
 
         """
         score = self.score(template, query)
+        print(str(score)+"fw score")
+        print(template)
+        print(" ")
+        print(query)
         score_reverse = self.score(template, query.reverse_complement())
+        print(str(score_reverse)+"reverse score")
         if score > score_reverse:
             alignment = super().align(template, query)[0]
         else:
