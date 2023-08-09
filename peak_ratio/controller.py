@@ -4,7 +4,7 @@ import models.plot as plot
 from models.abi import Reads
 from models.fasta import Templates
 from models.aligner import LocalAlignment
-from models.sample import Sampling, Samples, Excel
+from models.sample import Sampling, Samples, Excel #Doesn't import create?
 
 class Controller:
     def __init__(self):
@@ -12,34 +12,45 @@ class Controller:
         self.running = True 
         
         # Initializing lists for reads and standards from ABI files and templates from FASTA files.
-        self.reads: list = Reads(root_dir="abi") #Get the ab1 files of the reads in "abi"
-        self.standards: list = Reads(root_dir="standards") # Get the ab1 files of the standards in "standards"
-        self.templates: list = Templates(root_dir="fasta") # Get the templates sequences from the fasta. I *think* those are needed
+        self.reads: list = Reads(root_dir="abi") #Get the ab1 files name of the reads in "abi"
+        self.standards: list = Reads(root_dir="standards") # Get the ab1 files name of the standards in "standards". They're needed because the height of a peak vary based on the local environment
+        self.templates: list = Templates(root_dir="fasta") # Get the templates sequences from the fasta. I they're used to fix the position on the ab1 files
 
         # Check for an Excel file that has sequence info, or prompt the user to create on (see def block)
         # It gives an excel file with samples (ab1), fasta1, fasta2, standard1 and standard2
         self.create_excel_file()
         
         # Create objects for sampling, alignment, and samples.
-        self.sampling = Sampling()
-        self.aligner = LocalAlignment()
+        self.sampling = Sampling() #Creates a Sampling() class object with the values for all the ab1 file. As I understand it, this wouldn't call the functions outside init yet
+        self.aligner = LocalAlignment() # Create an aligner for the controller to use
         self.samples = Samples(sampling=self.sampling,
                                reads=self.reads,
                                standards=self.standards,
-                               templates=self.templates)
+                               templates=self.templates) #Store all the previous values in a Samples df.
+        
+        self.verify_reads_quality()
 
         # Set reads in samples and verify their direction.
-        self.samples.set_reads(self.aligner) # This should align reads and return the alignment on the templates
+        self.samples.set_reads(self.aligner) # This use the set reads method of samples to align reads and return the alignment on the templates, trace file, length of sequence and other, for each file in the SAMPLES colums
         self.verify_reading_direction() # Runs a series of check in "verify reading direction"
-        self.samples.set_locations()
+        self.samples.set_locations() # For each sample, grab the two corresponding templates and identify all the mutations positions
 
     def create_excel_file(self):
         # Create an Excel file if it doesn't already exist. That excel file should contains the templates and standards for all reads and are then used in the script
         excel = Excel(reads=self.reads, templates=self.templates, standards=self.standards)
         if excel.excel_file_exist():
             return
-        excel.create()
+        excel.create() # This print out the excel file it it exists. At that point it usually would be empty.
         view.fill_sample_file(file=excel.filename)
+    
+    #Check the quality of the reads. If they are only N calls an error
+    # Somehow doesn't stop the execution
+    def verify_reads_quality(self):
+        problematic_file = self.samples.verify_only_n()
+        if problematic_file:
+            view.error_read_quality(problematic_file)
+            self.running = False
+            exit()
 
     def verify_reading_direction(self):
         # Verify the directionality of standard reads, template reads, and template lengths.

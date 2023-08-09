@@ -143,8 +143,11 @@ class Sampling:
 
 # Extends pandas DataFrame to create a specialized DataFrame for storing and processing samples
 class Samples(pd.DataFrame): # Samples inherit from data frame class
+    #sampling:Sampling means that sampling should be of Sampling class, but doesn't actually enforce it
     def __init__(self, sampling: Sampling, reads, standards, templates):
         super().__init__()
+        
+        # Populate the DataFrame with the output of the sampling.get_samples_from_sampling method and assign the results to the SAMPLES_COLUMN column
         self[SAMPLES_COLUMN] = sampling.get_samples_from_sampling(reads=reads,
                                                                   standards=standards,
                                                                   templates=templates)
@@ -173,6 +176,14 @@ class Samples(pd.DataFrame): # Samples inherit from data frame class
     def set_locations(self):
         for sample in self[SAMPLES_COLUMN]:
             sample.set_sample_locations()
+            
+    def verify_only_n(self):
+        """Check that the reads doesn't only have N (aka sequencing failed)"""
+        for sample in self[SAMPLES_COLUMN]:
+            s = sample.read.get_sequence()
+            # If all the letters in the sequence are N, return True
+            if all(char == 'N' for char in s):
+                return sample.read.filename
 
     def verify_standard_directionality(self):
         """Vérifie que la direction des reads des standards sont dans le même sens que le read de séquençage."""

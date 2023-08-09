@@ -29,12 +29,12 @@ class LocalAlignment(Align.PairwiseAligner):
 
         """
         score = self.score(template, query)
-        print(str(score)+"fw score")
-        print(template)
-        print(" ")
-        print(query)
+        # print(str(score)+"fw score")
+        # print(template)
+        # print(" ")
+        # print(query)
         score_reverse = self.score(template, query.reverse_complement())
-        print(str(score_reverse)+"reverse score")
+        # print(str(score_reverse)+"reverse score")
         if score > score_reverse:
             alignment = super().align(template, query)[0]
         else:

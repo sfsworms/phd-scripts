@@ -8,3 +8,13 @@
 ## Ignore all R sessions and saved environments
 .RData
 .Rhistory
+
+## Ignore files that aren't my scrit files in peak_ratio
+/peak_ratio/abi
+/peak_ratio/fasta
+/peak_ratio/standards
+/peak_ratio/old
+/peak_ratio/.idea
+/peak_ratio/_pycache_
+/peak_ratio/doc
+/peak_ratio/*.xlsx
