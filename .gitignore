@@ -14,7 +14,12 @@
 /peak_ratio/fasta
 /peak_ratio/standards
 /peak_ratio/old
+/peak_ratio/plot
 /peak_ratio/.idea
 /peak_ratio/_pycache_
 /peak_ratio/doc
 /peak_ratio/*.xlsx
+
+*.ab1
+*.pyc
+*fasta

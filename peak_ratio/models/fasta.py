@@ -5,7 +5,8 @@ from Bio import SeqIO
 """
 Commented on Tue Aug  8 22:24:48 2023
 
-This file is similar to the ab1. It reads all the fasta files in 
+This file is similar to the ab1. It reads all the fasta files in the fasta subfolder, then for each files extract each sequence. 
+
 
 @author: worms
 """
@@ -13,7 +14,7 @@ This file is similar to the ab1. It reads all the fasta files in
 TYPE_FASTA = "fasta"
 GENERIC_FILE_FASTA = "*.fasta"
 
-
+"""Stores the filename, name of the sequence, sequence and length"""
 class Template:
     def __init__(self, record, filename):
         self.filename = filename
@@ -22,7 +23,8 @@ class Template:
         self.length = len(self.sequence)
 
 
-class Templates(list): #Inherit from list
+"""Create a list of template objects, as well as storing the list of files, and list of all names in all the template in templates_list"""
+class templates_list(list): #Inherit from list
     def __init__(self, root_dir=None): # root_dir is assigned None per default
         super().__init__()
         if root_dir is not None:
@@ -30,10 +32,10 @@ class Templates(list): #Inherit from list
         else:
             self.directory = ""
         self.files = glob.glob(pathname=GENERIC_FILE_FASTA, root_dir=root_dir)
-        self.create_templates()
+        self.create_templates_list()
         self.names = self.get_names()
 
-    def create_templates(self):
+    def create_templates_list(self):
         #Creat  template objects if the list is empty
         if not self:
             for file in self.files:

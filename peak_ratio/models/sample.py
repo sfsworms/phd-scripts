@@ -42,6 +42,7 @@ class Sample:  # TODO à repenser => mettre dans la classe samples sous forme d'
         self.template_2 = template_2
         self.standard_1 = standard_1
         self.standard_2 = standard_2
+        # This intialize as an empty list, but it's supposed to contain the positions of the mutations relevant to the analysis of the sample
         self.sample_locations = []
 
     # Sets the strand direction for reads and standards based on alignment
@@ -73,13 +74,22 @@ class Sample:  # TODO à repenser => mettre dans la classe samples sous forme d'
     def set_sample_locations(self):
         # Don't do anything if values already exist
         if len(self.sample_locations) != 0:
+            print("Error : sample_locations didn't intialize as empty.")
             return
         # Identify mutation locations by comparing templates this gives a list of
         # mutation position
-        for index in range(self.template_1.length):
-            if self.template_1.sequence[index] != self.template_2.sequence[index]:
+        for index in range(self.template_1.length): # For each base of the template
+            if self.template_1.sequence[index] != self.template_2.sequence[index]: 
+                #This fails!
+                #If the base at that location are different, print the base
+                
                 self.sample_locations.append(index)
+        # Check that some mutations were identified
+        if len(self.sample_locations) == 0:
+            print("Error: no difference were found between the templates")
+            exit()
 
+                
 # Sampling class handles reading and extracting sample information from an Excel file
 class Sampling:
     def __init__(self):

@@ -15,7 +15,8 @@ CHROMATOGRAM_COLORS = {"A": "tab:green",
 
 def chromatogram(sample, read, ylim):
     # Get the location (indices) of mutations in the read
-    mutation_locations = read.get_locations(sample.sample_locations)
+    #print(sample.sample_locations)
+    mutation_locations = read.get_locations_on_read(sample.sample_locations)
     # Define the range around the mutation to be plotted
     lower_location = mutation_locations[0]
     upper_location = mutation_locations[-1]

@@ -8,7 +8,7 @@ def error_length_templates():
 
 
 def error_standard():
-    print("An unexpected error has been detected: Please check the reading direction of your abi files.")
+    print("An unexpected error has been detected: Please make sure the .ab1 file of the read is in the same direction as the reads of the standards ab1.")
 
 
 def show_settings_read(name, strand):
@@ -16,6 +16,7 @@ def show_settings_read(name, strand):
 
 
 def show_samples(df):
+    print("List of samples being treated:")
     print(df.to_string())
 
 

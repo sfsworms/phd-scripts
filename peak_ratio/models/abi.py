@@ -36,7 +36,7 @@ class Read:
         self.name = self.filename[:-LEN_EXTENSION_AB1]
         self.trace = dict()
         self.extract_data_from_abi(record)
-        self.pbas = self.get_sequence()
+        self.pbas = self.get_sequence() # Why is there a self.pbas and also a self.sequence?
         self.strand = None
         self.sequence = None
         self.chromatograms = None
@@ -83,14 +83,16 @@ class Read:
             return
         self.length_sequence = len(self.sequence)
 
+    # Set the alignment for the read.
     def set_alignment(self, aligner, template):
         # Ne fais rien si une valeur est déjà présente
         if self.alignment is not None:
             return
-        self.alignment = aligner.run(template=template.sequence, query=self.sequence)
+        self.alignment = aligner.run(template=template.sequence, query=self.sequence) #Align the read on the template, the query is the sequence
         self.template_aligned = self.alignment.aligned[0]
         self.read_aligned = self.alignment.aligned[1]
 
+    # This method extract a sequence from the ab1 trace file
     def get_sequence(self):
         return Seq(self.trace[PBAS].decode())
 
@@ -111,6 +113,8 @@ class Read:
                          "T": list(reversed(self.trace[DATA10]))}
         return chromatograms
 
+    # Trace[PLOC] returns the position of all the individual base call within the abi file.
+    # PLOC can be "PLOC1" or "PLOC2" depending on the machine who made the sequencing
     def get_base_location(self):
         return list(self.trace[PLOC])
 
@@ -123,24 +127,31 @@ class Read:
     def find_tuple_index_in_aligned(self, sample_locations):
         # Trouve l'index du tuple qui concerne les positions de sample_locations
         tuple_index = []
+        # Check that sample_locations isn't empty
+
+            
         for location in sample_locations:
             for region in self.template_aligned:
                 if location in range(region[0], region[1]):
                     tuple_index.append(self.template_aligned.index(region))
         return tuple_index
 
-    def get_locations(self, sample_locations):
+    # This method takes a tuple of positions of mutations on the reference sequence, and find the corresponding position on the read
+    def get_locations_on_read(self, sample_locations):
         tuple_index = self.find_tuple_index_in_aligned(sample_locations)
+        if not tuple_index:
+            print("Error : tuple_index is empty. Check if all reads align to their fasta templates.")
+            return None
         index = tuple_index[0]
         # Vérifie que toutes les mutations sont contenues dans un tuple identique
         for value in tuple_index:
             if value != index:
-                # "ERROR set_read_locations: Gap detected!")
+                print("ERROR set_read_locations: Gap detected!")
                 return None
         # converti l'index mutation_locations en index read_locations
         locations = []
         for location in sample_locations:
-            locations.append(location - (self.template_aligned[index][0] - self.read_aligned[index][0]))
+            locations.append(location - (self.template_aligned[index][0] - self.read_aligned[index][0])) # This converts the index on the fasta to an index on the ab1, by comparing the alignment of the template with the alignment of the read
         return locations
 
 # The Reads class has for a goal to get all the ab1 files from a folder, read the sequences using SeqIO and make a list with the sequences and filename
