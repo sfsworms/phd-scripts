@@ -46,6 +46,3 @@ python main.py
 The script will create an excel file named "samples.xlsx" if it doesn't exist already, with the following columns: SAMPLE_ABI_FILES	FASTA_1	FASTA_2	STANDARD_1	STANDARD_2
 
 The sample column will be already filled. You should fill the FASTA_1 and FASTA_2 columns with the name of the reference sequence within the .fasta as they appear in the fasta subfolder. The STANDARD_1 and STANDARD_2 columns should be filled with the name of the .ab1 files corresponding to those standards. 
-
-### TODO:
-In addition to idea commented in the code, it seems to struggle with reverse reads if the template is fw. 
