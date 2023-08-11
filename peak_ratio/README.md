@@ -46,3 +46,12 @@ python main.py
 The script will create an excel file named "samples.xlsx" if it doesn't exist already, with the following columns: SAMPLE_ABI_FILES	FASTA_1	FASTA_2	STANDARD_1	STANDARD_2
 
 The sample column will be already filled. You should fill the FASTA_1 and FASTA_2 columns with the name of the reference sequence within the .fasta as they appear in the fasta subfolder. The STANDARD_1 and STANDARD_2 columns should be filled with the name of the .ab1 files corresponding to those standards. 
+
+## Downstream scripts
+Those are scripts I coded. They aren't integrated in the MVC architecture yet. 
+
+### reference_analysis.py
+
+This one takes data from reference ab1 obtaine by treating them as samples in steve's script, and manually computing the relative intensities, as well as adding the sequences. (See the exemple file for the expected format).
+
+It outputs a file with the reference relative intensity for each nucleotide-position pair present in the references, as well as the sd if that was averaged over multiple reference peak.
