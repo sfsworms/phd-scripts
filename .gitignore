@@ -16,10 +16,13 @@
 /peak_ratio/old
 /peak_ratio/plot
 /peak_ratio/.idea
-/peak_ratio/_pycache_
+/peak_ratio/__pycache__
 /peak_ratio/doc
-/peak_ratio/*.xlsx
 
+
+# Ignore data files
+
+*.xlsx
 *.ab1
 *.pyc
-*fasta
+*.fasta

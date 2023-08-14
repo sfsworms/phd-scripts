@@ -73,102 +73,61 @@ class Controller:
     #TODO: and standards in the same DF
     # Equally, this should add the key of the value of each standards
     #TODO: Get a way to have more than 2 standards
+    
     def get_peaks_read(self):
+        # Define a function to get the peak value for a given nucleotide at a specific location
+        def get_peak_value(chromatogram, read, location):
+            return chromatogram[read.base_location[read.get_locations_on_read([location])[0]]]
         
-        # Initialize the list of read names
-        read_list = []
-        
-        # Initialize the list of mutation positions (on the fasta file)
-        mutation_position_list = []
-        
-        # Initialize the list of values for all the peaks at all the position + the reference peak
-        peak_a_list = []
-        peak_c_list = []
-        peak_g_list = []
-        peak_t_list = []
-        peak_reference_list = []
-        
-        # Initialize the lists of nucleotides at all the position
-        base_template_1_list = []
-        base_template_2_list = []
-        base_template_reference_list = []
-        
-        df = pd.DataFrame() # initialize a df
-        
-        for sample in self.samples["SAMPLES"]: #Look at each samples. Just take the "samples" column
-            
-            # Determine the reference location based on the strand of the read.
-            # If the strand is positive, use the first location minus the normalization distance.
-            # If the strand is negative, use the last location plus the normalization distance.
-
+        all_rows = []  # List to hold all rows before converting to DataFrame
+    
+        # Iterate over each sample
+        for sample in self.samples["SAMPLES"]:
+            # Determine the reference location and column based on the strand of the read
             if sample.standard_2.strand == "+":
                 reference_location = sample.sample_locations[0] - NORMALIZATION_DISTANCE
-                REFERENCE_COLUMN = str("Reference (+"+str(NORMALIZATION_DISTANCE)+")")
+                REFERENCE_COLUMN = f"Reference (+{NORMALIZATION_DISTANCE})"
             else:
                 reference_location = sample.sample_locations[-1] + NORMALIZATION_DISTANCE
-                REFERENCE_COLUMN = str("Reference (-"+str(NORMALIZATION_DISTANCE)+")")
+                REFERENCE_COLUMN = f"Reference (-{NORMALIZATION_DISTANCE})"
             
-            # Get the base of the reference so I know what chromatogram to get
+            # Get base and chromatogram of the reference
             base_reference = sample.template_1.sequence[reference_location]
-            
             chromatogram_reference = sample.read.chromatograms[base_reference]
             
-            # Fetch the chromatograms for the sample
-            chromatogram_a = sample.read.chromatograms["A"] #Get the value of entire the chromatogram for A
-            chromatogram_c = sample.read.chromatograms["C"] #Get the value of entire the chromatogram for C
-            chromatogram_g = sample.read.chromatograms["G"] #Get the value of entire the chromatogram for G
-            chromatogram_t = sample.read.chromatograms["T"] #Get the value of entire the chromatogram for T
+            # Fetch chromatograms for each nucleotide
+            chromatograms = {
+                "A": sample.read.chromatograms["A"],
+                "C": sample.read.chromatograms["C"],
+                "G": sample.read.chromatograms["G"],
+                "T": sample.read.chromatograms["T"]
+            }
             
-            # For each sample location (Aka, position where the two templates differs)
+            # For each mutation location in the sample
             for sample_location in sample.sample_locations:
+                row_data = {
+                    "SAMPLE": sample.read.name,
+                    "POSITION (FASTA)": sample_location,
+                    "BASE TEMPLATE 1": sample.template_1.sequence[sample_location],
+                    "BASE TEMPLATE 2": sample.template_2.sequence[sample_location],
+                    REFERENCE_COLUMN: get_peak_value(chromatogram_reference, sample.read, reference_location)
+                }
                 
-                # Get the nucleotide at that position in the template sequence
-                base_template_1 = sample.template_1.sequence[sample_location] 
-                base_template_2 = sample.template_2.sequence[sample_location]
+                # Get peak values for each nucleotide
+                for nucleotide in ["A", "C", "G", "T"]:
+                    row_data[f"PEAK_{nucleotide}"] = get_peak_value(chromatograms[nucleotide], sample.read, sample_location)
                 
-                # Determine the peak values based on the sample location.
-                # TODO: Consider using a list for handling multiple mutations
-                    # This would require getting all the traces I think, then getting the values for all 4 peaks at that position? Then logic later can interpret that
-                # get_locations_on_read turn a location on the fasta into a location on the ab1
-                # base.location contains the results of get_base_locations, a list of the position on the trace of all the base calls
-                # Getting the value on the chromatogram for this value gets the peak intensity
-                peak_value_a = chromatogram_a[sample.read.base_location[sample.read.get_locations_on_read([sample_location])[0]]] # Get the intensity of A at the position
-                peak_value_c = chromatogram_c[sample.read.base_location[sample.read.get_locations_on_read([sample_location])[0]]] # Get the intensity of A at the position
-                peak_value_g = chromatogram_g[sample.read.base_location[sample.read.get_locations_on_read([sample_location])[0]]] # Get the intensity of A at the position
-                peak_value_t = chromatogram_t[sample.read.base_location[sample.read.get_locations_on_read([sample_location])[0]]] # Get the intensity of A at the position
-                peak_reference = chromatogram_reference[sample.read.base_location[sample.read.get_locations_on_read([reference_location])[0]]]
-
-                # Increment on the lists we'll use
-                
-                read_list.append(sample.read.name)
-                
-                peak_a_list.append(peak_value_a)
-                peak_c_list.append(peak_value_c)
-                peak_g_list.append(peak_value_g)
-                peak_t_list.append(peak_value_t)
-                peak_reference_list.append(peak_reference)
-                
-                base_template_1_list.append(base_template_1)
-                base_template_2_list.append(base_template_2)
-                base_template_reference_list.append(base_template_1)
-                
-                mutation_position_list.append(sample_location)
-                    
-        # Add all the values to the df before printing it out.
-        df["SAMPLE"] = read_list # Names of the samples
-        df["POSITION (FASTA)"] = mutation_position_list 
-        df["PEAK_A"] = peak_a_list # Values of the intensity of A at the mutation point
-        df["PEAK_C"] = peak_c_list 
-        df["PEAK_G"] = peak_g_list 
-        df["PEAK_T"] = peak_t_list 
-        df["BASE TEMPLATE 1"] = base_template_1_list
-        df["BASE TEMPLATE 2"] = base_template_2_list
-        df[REFERENCE_COLUMN] = peak_reference_list # Value of the reference?
+                # Append the row data to the all_rows list
+                all_rows.append(row_data)
+        
+        # Convert the all_rows list to a DataFrame using concat
+        df = pd.concat([pd.DataFrame([row]) for row in all_rows], ignore_index=True)
         
         return df
 
+# NOTE: This refactored method assumes that 'self.samples' is a DataFrame or a structure that supports dictionary-like indexing.
+# It's based on the provided code, but might need adjustments based on the complete program context.
 
-    def run(self):
         view.show_samples(df=self.samples) # Print the samples to the console
 
         for sample in self.samples["SAMPLES"]:
@@ -189,7 +148,8 @@ class Controller:
         # results_df = reduce(lambda left,right: pd.merge(left,right,on=["SAMPLE", "POSITION_FASTA"]), dfs)
 
         # Send to excel
-        df_reads.to_excel("PIC_SAMPLES.xlsx")
+        df_reads.to_excel("PIC_SAMPLES_concat.xlsx")
+
         
         
         
@@ -280,55 +240,5 @@ class Controller:
         
         # This is a refactore version of get peaks. HAvent checked it yet.
         
-        def streamlined_get_peaks_read(self):
-    # Define a function to get the peak value for a given nucleotide at a specific location
-    def get_peak_value(chromatogram, read, location):
-        return chromatogram[read.base_location[read.get_locations_on_read([location])[0]]]
-    
-    df = pd.DataFrame()  # Initialize a dataframe
-
-    # Iterate over each sample
-    for sample in self.samples["SAMPLES"]:
-        # Determine the reference location and column based on the strand of the read
-        if sample.standard_2.strand == "+":
-            reference_location = sample.sample_locations[0] - NORMALIZATION_DISTANCE
-            REFERENCE_COLUMN = f"Reference (+{NORMALIZATION_DISTANCE})"
-        else:
-            reference_location = sample.sample_locations[-1] + NORMALIZATION_DISTANCE
-            REFERENCE_COLUMN = f"Reference (-{NORMALIZATION_DISTANCE})"
-        
-        # Get base and chromatogram of the reference
-        base_reference = sample.template_1.sequence[reference_location]
-        chromatogram_reference = sample.read.chromatograms[base_reference]
-        
-        # Fetch chromatograms for each nucleotide
-        chromatograms = {
-            "A": sample.read.chromatograms["A"],
-            "C": sample.read.chromatograms["C"],
-            "G": sample.read.chromatograms["G"],
-            "T": sample.read.chromatograms["T"]
-        }
-        
-        # For each mutation location in the sample
-        for sample_location in sample.sample_locations:
-            row_data = {
-                "SAMPLE": sample.read.name,
-                "POSITION (FASTA)": sample_location,
-                "BASE TEMPLATE 1": sample.template_1.sequence[sample_location],
-                "BASE TEMPLATE 2": sample.template_2.sequence[sample_location],
-                REFERENCE_COLUMN: get_peak_value(chromatogram_reference, sample.read, reference_location)
-            }
-            
-            # Get peak values for each nucleotide
-            for nucleotide in ["A", "C", "G", "T"]:
-                row_data[f"PEAK_{nucleotide}"] = get_peak_value(chromatograms[nucleotide], sample.read, sample_location)
-            
-            # Append the row data to the dataframe
-            df = df.append(row_data, ignore_index=True)
-    
-    return df
-
-# NOTE: This refactored method assumes that 'self.samples' is a DataFrame or a structure that supports dictionary-like indexing.
-# It's based on the provided code, but might n
-
+ 
         
