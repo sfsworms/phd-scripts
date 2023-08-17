@@ -127,7 +127,7 @@ class Controller:
 
 # NOTE: This refactored method assumes that 'self.samples' is a DataFrame or a structure that supports dictionary-like indexing.
 # It's based on the provided code, but might need adjustments based on the complete program context.
-
+    def run(self):
         view.show_samples(df=self.samples) # Print the samples to the console
 
         for sample in self.samples["SAMPLES"]:
@@ -148,7 +148,7 @@ class Controller:
         # results_df = reduce(lambda left,right: pd.merge(left,right,on=["SAMPLE", "POSITION_FASTA"]), dfs)
 
         # Send to excel
-        df_reads.to_excel("PIC_SAMPLES_concat.xlsx")
+        df_reads.to_excel("PIC_SAMPLES.xlsx")
 
         
         
