@@ -20,6 +20,9 @@
 /peak_ratio/models/__pycache__
 /peak_ratio/doc
 
+### Ignore data files
+/peak_ratio/data/*.png
+
 
 # Ignore data files
 
