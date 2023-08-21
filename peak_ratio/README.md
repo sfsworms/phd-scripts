@@ -52,6 +52,32 @@ Those are scripts I coded. They aren't integrated in the MVC architecture yet.
 
 ### reference_analysis.py
 
-This one takes data from reference ab1 obtaine by treating them as samples in steve's script, and manually computing the relative intensities, as well as adding the sequences. (See the exemple file for the expected format).
+This one takes data from reference .ab1 obtained by treating them as samples in steve's script. The file should then be manually edited to compute the relative intensities (divide by the ref sequence) and adding the actual expected nucleotide. 
 
-It outputs a file with the reference relative intensity for each nucleotide-position pair present in the references, as well as the sd if that was averaged over multiple reference peak.
+The file fed into the script should have four columns name 'a_rel', 'c_rel', 'g_rel' and 't_rel' containing the relative intensities, a "position" column indicating the position in the peptide, a "peptide" column indicating the name of the peptide and a "nucleotide" column containing the base present in that peptide at that position.
+
+It outputs a file with the reference relative intensity for each nucleotide-position pair present in the references, as well as the sd if that was averaged over multiple reference peak and a "unique_peptides" column indicating how many peptides had that base at that position.
+
+You can call the program as follow:
+python reference_analysis.py input.xlsx output.xlsx
+
+Where input.xlsc and output.xlsx are names of the input reference file and the desired name for the output file.
+
+### ratio.py
+
+This script compute a ratio of peptides at each position for a mixed peptide. This script simply gives the relative peak of a nucleatide divided by the relative peak of the reference for that base and position, so percentage don't always sum up to 100 and should be normalized manually afterward.
+
+If there is a peak at a position that has no equivalent in the reference, its proportion is arbitrarily set to zero.
+
+#### Inputs
+This script takes in a reference.xlsx file created by reference_analysis.py. It takes a sample.xlsx file created by the previous script and then modified manually to contain 'a_rel', 'c_rel', 'g_rel' and 't_rel' columns?
+
+#### Outputs
+It create an excel sheet with, for each position, a proportions of the fours bases at that position, as well as a "peptide" column with the peptide name.
+
+#### Call
+The script can be called with
+python ratio.py reference.xlsx sample.xlsx percentage.xlsx
+Where reference.xlsx sample.xlsx and percentage.xlsx are respectively the name of the file with the reference peak, the file with the samples, and the desired output file.
+
+

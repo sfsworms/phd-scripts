@@ -18,9 +18,6 @@ if len(sys.argv) > 2:
 else:
     output_file_path = "reference_averaged.xlsx"
 
-
-
-
 def process_data(input_file, output_file):
     # Load the data from an Excel file
     data = pd.read_excel(input_file)
