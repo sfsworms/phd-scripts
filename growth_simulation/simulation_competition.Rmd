@@ -1,0 +1,23 @@
+---
+title: "Competition simulations"
+output: html_document
+date: "2023-08-24"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r 'loading functions'}
+folder_loc <- getwd()
+source(file = file.path(folder_loc,"simulation_functions.R"))
+```
+
+
+# Introduction
+This report aims to compare the observed ratio of peptides in the competitions experiment to what we know of their mumaxes and see if they are compatible.
+
+## Input parameters
+The models requires a bunch of parameters. 
+
+
