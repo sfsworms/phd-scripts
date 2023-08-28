@@ -1,3 +1,5 @@
+library(tidyverse)
+
 path <- file.path("C:/Users/worms/ngs_data/2022_06_07_drift_seq/90-666155004b/00_fastq/all_files/peptide_count_csv")
 
 file_list <- list.files(path)
