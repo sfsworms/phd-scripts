@@ -16,13 +16,13 @@ library(tidyverse)
 # A data frame containing the OD of each strain at each time point, according to the Baranyi-Roberts model (see Baranyi, 1994)
 
 # Exemple Data
-K = 2
-h0 = 5
-
-time = seq(0,75000, by = 250)
-input_df <- data.frame(peptide = c("EP1", "EP2", "DP1", "DP2", "DP3"),
-                       mumax = c(26,25,22,17,16)*1e-5,
-                       y0 = rep(1e-3,5))
+# K = 2
+# h0 = 5
+# 
+# time = seq(0,75000, by = 250)
+# input_df <- data.frame(peptide = c("EP1", "EP2", "DP1", "DP2", "DP3"),
+#                        mumax = c(26,25,22,17,16)*1e-5,
+#                        y0 = rep(1e-3,5))
 
 competition_simulation <- function(input_df, 
                                    time = seq(0,75000, by = 250),
@@ -85,5 +85,12 @@ pivot_simulation_df <- function(df){
   return(graph_df)
 }
 
+# This function compute ratios of the different growth strain in a simulation.
 
+strains_ratio <- function(df){
+  # Check that the DF has a "time" and "_OD" columns
+  if(!("time" %in% colnames(df))) print("The DF doesn't have a time column")
+  
+  if(!any(grepl("_OD", colnames(df)))) print("This DF doesn't have columnes containing _OD")
+}
 

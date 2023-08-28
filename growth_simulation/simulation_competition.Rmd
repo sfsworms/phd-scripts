@@ -5,10 +5,10 @@ date: "2023-08-24"
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE)
 ```
 
-```{r 'loading functions'}
+```{r 'loading functions', include= FALSE}
 folder_loc <- getwd()
 source(file = file.path(folder_loc,"simulation_functions.R"))
 ```
@@ -18,6 +18,61 @@ source(file = file.path(folder_loc,"simulation_functions.R"))
 This report aims to compare the observed ratio of peptides in the competitions experiment to what we know of their mumaxes and see if they are compatible.
 
 ## Input parameters
-The models requires a bunch of parameters. 
+The models requires a bunch of parameters, both strain-specific and generic. I'll input the generic parameters now. K and µ0 will be obtained from the data of the experiment of 2023.06.17.
 
+```{r 'generic parameters', include = TRUE}
+# Importing the data
+params_df <- read.csv(file.choose())
+
+# Take the average of all K for the carrying capacity
+K <- params_df %>% filter(induction == "ara") %>% pull("K") %>% mean()
+print(paste0("The value of K is ", round(K, digits = 2)))
+
+# Same with the h0 metabolic rate parameter
+h0 <- params_df %>% filter(induction == "ara") %>% pull("h0") %>% mean()
+print(paste0("The value of h0 is ", round(h0, digits = 2)))
+```
+The model also require a df with peptides names, mumaxes and y0
+
+```{r 'input df'}
+input_df <- data.frame(peptide = params_df %>% 
+                         arrange(peptide) %>% 
+                         pull(peptide) %>% 
+                         unique(),
+                       mumax =  params_df %>% 
+                         filter(induction == "ara") %>% 
+                         group_by(peptide) %>%
+                         summarise(mumax_mean = mean(mumax)) %>%
+                         ungroup() %>% pull(mumax_mean),
+                       y0 = params_df %>%
+                         pull(y0) %>%
+                         .[1]
+)
+
+print(input_df)
+```
+## Running the model
+
+Once we have the parameters we can run the model.Here for exemple is a representation of a 16 hours competition.
+
+```{r 'running_model'}
+hours = 16
+time_sim <- seq(0,hours*3600, by = 100)
+
+result_sim <- competition_simulation(input_df, time = time_sim, K = K, h0 = h0)
+```
+
+```{r 'Graphing the simulation'}
+data_graph <- pivot_simulation_df(result_sim) %>%
+  mutate(time = time /3600) # convert time to hours
+
+plot_exemple <- ggplot(data_graph, aes(x= time, y = OD, color = peptide)) +
+  geom_point(alpha = 0.5, na.rm = TRUE) + 
+  xlab("Time (hours)") +
+  ylab("Optical density at 600 nm") +
+  scale_x_continuous(breaks = c(0,4,8,12,16)) +
+  ggtitle("Simulated growth of the peptides over 4 hours.")
+
+plot_exemple
+```
 
