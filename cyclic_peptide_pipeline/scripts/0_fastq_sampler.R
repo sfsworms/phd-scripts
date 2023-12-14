@@ -1,3 +1,5 @@
+#TODO: Turn the sampling into a function
+
 # The goal of this script is to sample bits of a very large fastq.gz file and save it for use with other script when running optimisation.
 
 ## Library loading
@@ -50,3 +52,4 @@ for(i in file_list){
                            )
              )
 }
+
