@@ -5,10 +5,10 @@
 library(tidyverse)
 library(dada2)
 
-path <- "C:/Users/worms/NGS Data/2022.06.07_drift_seq/90-666155004b/00_fastq/NNK/dada2_test"
+path <- "C:/Users/Sebastian Worms/ngs_data/NGS Ale/90-933598625/00_fastq"
 list.files(path)
 
-# Forward and reverse fastq filenames have format: SAMPLENAME_R1_001.fastq and SAMPLENAME_R2_001.fastq
+# Forward and reverse fastq filenames have format: SAMPLENAME_R1_001.fastq.gz and SAMPLENAME_R2_001.fastq.gz
 # The sort() function is there to make sure they're in the same order
 
 fnFs <- sort(list.files(path, pattern = "_R1_001.fastq.gz$", full.names = TRUE))

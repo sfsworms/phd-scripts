@@ -1,31 +1,6 @@
-# Load required libraries
-library(ggplot2)
-library(tidyverse)
+# Load libraries and functions
+source("functions.R")
 
-# Function to simulate bacterial library
-simulate_library <- function(X, mean_count = 10) {
-  data.frame(clone_id = c(1:X),
-             clone_count = rpois(X, mean_count)*100) %>%
-  return()
-}
-
-# Function to subset bacterial library
-subset_library <- function(lib, Y, replacement = FALSE) {
-  if (sum(lib$clone_count) < Y) stop("Not enough bacteria to subset")
-  count_array <- lib %>% pull(clone_count)
-  
-  new_lib <- rep(0, nrow(lib))
-  
-  for (i in 1:Y) {
-    # Randomly select a clone based on its proportion in the library
-    selected_clone <- sample(1:length(count_array), size = 1, prob = count_array / sum(count_array))
-    new_lib[selected_clone] <- new_lib[selected_clone] + 1
-    if (!replacement) lib[selected_clone,2] <- lib[selected_clone,2] - 1
-  }
-  
-  return(data.frame(clone_id = c(1:X),
-                    clone_count = new_lib))
-}
 
 # Simulate a library of 100 different clones
 X <- 1e2
@@ -74,7 +49,7 @@ cor(df$clone_count_original, df$clone_count_subsetted)
 
 # Do it at the function level
 subsetting_correlation <- function(sampling_ratio, X = 100){
-  ori_lib <- simulate_library(X) %>% pull()
+  ori_lib <- simulate_library(X)
   sub_lib <- subset_library(ori_lib, X * sampling_ratio)
   correlation <- cor(ori_lib$clone_count, sub_lib$clone_count)
   return(correlation)
@@ -84,10 +59,14 @@ subsetting_correlation <- function(sampling_ratio, X = 100){
 ratio = c(1:10)
 
 cor_df <- data.frame(sampling_ratio = c(1:200)) %>%
-  mutate(correlation = lapply(sampling_ratio, subsetting_correlation))
+  mutate(correlation = sapply(sampling_ratio, subsetting_correlation))
 
 ggplot(cor_df, aes(x = sampling_ratio, y = correlation)) +
   geom_point() +
   labs(title = "Correlation of ratio after subsetting depending on sampling ratios",
        x = "Sampling ratios",
-       y = "Correlation coefficient")
+       y = "Correlation coefficient") + 
+  geom_smooth() +
+  theme_bw()
+## Add line at 10, 50
+## Add trendline
