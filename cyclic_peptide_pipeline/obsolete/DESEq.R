@@ -1,3 +1,5 @@
+
+
 # Set the directory path where the data is located
 directory <- "C:/Users/worms/ngs_data/2022_06_07_drift_seq/90-666155004b/00_fastq/all_files"
 
