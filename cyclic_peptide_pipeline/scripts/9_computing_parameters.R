@@ -1,5 +1,7 @@
 # The goal of this script is to sort the mess of my analysis notebook by separating the computations from the discussions
 
+#This specifically compute parameters (pI, charge) for all the peptides
+
 directory <- "C:/Users/worms/ngs_data/2022_06_07_drift_seq/90-666155004b/00_fastq/all_files"
 
 library(Peptides)
