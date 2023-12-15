@@ -6,7 +6,7 @@ setlocal EnableDelayedExpansion
 rem This calls the FLASH software. INPUT_FOLDER should be a path to a folder with one fwr reads and the corresponding rv reads. The software assume forward reads ends in _F_filt.fastq.gz and the reverse reads in _R_filt.fastq.gz but have otherwise identical names. The naming scheme comes from dada2
 
 
-set INPUT_FOLDER=C:\Users\worms\NGS Data\2022.06.07_drift_seq\90-666155004b\00_fastq\NNK\filtered\gen_1
+set INPUT_FOLDER=C:\Users\Sebastian Worms\ngs_data\NGS Ale\90-933598625\00_fastq\sampled_fastq
 set OUTPUT_FOLDER="%INPUT_FOLDER%\merged_reads"
 set INPUT_FOLDER="%INPUT_FOLDER%"
 
