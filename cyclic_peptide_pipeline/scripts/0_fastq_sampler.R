@@ -20,8 +20,9 @@ if (!require("fs")) {
 
 ## Inputs
 ### Folder to the data
-input_directory <- file.path("C:/Users/Sebastian Worms/ngs_data/NGS Ale/90-933598625/00_fastq") #This should link to the folder with the .fastq.gz
-output_directory <- file.path("C:/Users/Sebastian Worms/ngs_data/NGS Ale/90-933598625/00_fastq","sampled_fastq") #Directory where the samples will be stored
+input_directory <- file.choose() %>% dirname() #This should link to the folder with the .fastq.gz
+output_directory <- file.path(input_directory %>%
+                                dirname() ,"sample") #Directory where the samples will be stored
 
 ### Number of sequences to sample
 n = 10e5

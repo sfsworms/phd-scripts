@@ -15,3 +15,4 @@ if (!requireNamespace("BiocManager", quietly = TRUE))
 BiocManager::install()
 
 Sys.setenv(LANG = "en")
+

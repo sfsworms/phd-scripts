@@ -1,11 +1,11 @@
 # Dada2 pair-end merging
 
-## This script will serve to merge the forward and reverse reads or the files.
+## This script will serve to filter the reads prior to merging with FLASH
 
 library(tidyverse)
 library(dada2)
 
-path <- "C:/Users/Sebastian Worms/ngs_data/NGS Ale/90-933598625/00_fastq"
+path <- "C:/Users/Sebastian Worms/ngs_data/2023 OXA NGS/90-957741147"
 list.files(path)
 
 # Forward and reverse fastq filenames have format: SAMPLENAME_R1_001.fastq.gz and SAMPLENAME_R2_001.fastq.gz
@@ -28,9 +28,7 @@ sample.names <- sapply(strsplit(basename(fnFs), "_"), `[`, 1)
 
 
 png(file = file.path(path,"quality_plot.png"), bg = "transparent",  width = 600)
-
 plotQualityProfile(c(fnFs,fnRs))
-
 dev.off()
 
 #Quality is pretty good here. I commented out the file because it takes time.
@@ -47,11 +45,10 @@ names(filtRs) <- sample.names
 
 #The below truncate the fw and reverse reads. If assigned, "out" is a list of the files and reads obtained.
 
-out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs, truncLen=c(145,145), #Those are the cutoff for fw and rv
+out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs, truncLen=c(100,100), #Those are the cutoff for fw and rv
                      maxN=0, maxEE=c(3,5), truncQ=c(10,10), rm.phix=TRUE,
                      compress=TRUE, multithread=FALSE) # On Windows set multithread=FALSE
 
 write.csv(x = out, file = file.path(path,"filter_report.csv"))
 
-file_conn <- file(file.path(path,"time_taken.txt"), "w")
 
