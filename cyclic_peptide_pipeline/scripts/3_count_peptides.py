@@ -9,7 +9,7 @@ DESTINATION_FOLDER = sys.argv[2]
 FILE_TYPE = "fasta"
 
 # Vérification de la longueur des peptides
-PEPTIDE_LENGTH = 12
+PEPTIDE_LENGTH = 18
 NUCLEOTIDES = list("ACGT")
 
 def check_size(FILE, size=PEPTIDE_LENGTH):

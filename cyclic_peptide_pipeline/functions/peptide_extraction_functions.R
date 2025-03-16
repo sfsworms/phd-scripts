@@ -10,6 +10,16 @@
 #' @export
 #'
 #' @examples
+
+# Function to install and load packages
+install_if_missing <- function(pkg) {
+  if (!require(pkg, character.only = TRUE)) {
+    install.packages(pkg, dependencies = TRUE)
+    library(pkg, character.only = TRUE)
+  }
+}
+
+ 
 extract.peptide <- function(dna_seq, regexPattern = "TGGCTTCATTGCGAGCAAT", pepSize = 24){
   pepPosition <- str_locate(dna_seq %>% as.character(), regexPattern)[,2]
   sensiblePos <- pepPosition+pepSize < 145 #Added this for weird case where the pattern is present near the end
@@ -18,7 +28,7 @@ extract.peptide <- function(dna_seq, regexPattern = "TGGCTTCATTGCGAGCAAT", pepSi
   return(peptideList)
 }
 
-#Extract all peptides from the fastq of a run. Assume a fastq.gz file that has been merged by FLASH
+#Extract all peptides from the fastq of a run, with two . Assume a fastq.gz file that has been merged by FLASH
 
 extract.peptides.fastq = function(file_name, 
                                   destination, 
@@ -345,3 +355,4 @@ extract.peptides.fastq.unmerged = function(file_name,
   return(tracking_df)
   
 }
+
